@@ -1,0 +1,191 @@
+{
+ "project": "sample",
+ "program": "sample.bin",
+ "ghidra_version": "11.4.3",
+ "language": "ARM:LE:32:v5t",
+ "compiler_spec": "default",
+ "image_base": "ram:02000000",
+ "executable_md5": "00000000000000000000000000000000",
+ "function_count": 3,
+ "sidecar": {
+  "file": "export.bin",
+  "sha256": "471fb943aa23c511f6f72f8d1652d9c880cfa392ad80503120547703e56a2be5"
+ },
+ "memory_blocks": [
+  {
+   "name": "arm9",
+   "start": "ram:02000d00",
+   "size": 128,
+   "read": true,
+   "write": true,
+   "execute": true,
+   "type": "Default",
+   "initialized": true,
+   "volatile": false,
+   "overlay": false,
+   "sidecar_offset": 0,
+   "sidecar_length": 128
+  },
+  {
+   "name": "arm9_bss",
+   "start": "ram:02000e00",
+   "size": 16,
+   "read": true,
+   "write": true,
+   "execute": false,
+   "type": "Default",
+   "initialized": false,
+   "volatile": false,
+   "overlay": false,
+   "sidecar_offset": null,
+   "sidecar_length": null
+  }
+ ],
+ "symbols": [
+  {
+   "name": "FUN_02000d6c",
+   "address": "ram:02000d6c",
+   "type_id": 5,
+   "type": "Function",
+   "namespace": [],
+   "source": "DEFAULT",
+   "primary": true
+  },
+  {
+   "name": "DAT_02000d7c",
+   "address": "ram:02000d7c",
+   "type_id": 0,
+   "type": "Label",
+   "namespace": [],
+   "source": "DEFAULT",
+   "primary": true
+  },
+  {
+   "name": "EXT_FUN_0214d690",
+   "address": "EXTERNAL:00000001",
+   "type_id": 5,
+   "type": "Function",
+   "namespace": [
+    "<EXTERNAL>"
+   ],
+   "source": "DEFAULT",
+   "primary": true
+  },
+  {
+   "name": "orphan",
+   "address": null,
+   "type_id": 0,
+   "type": "Label",
+   "namespace": [],
+   "source": "USER_DEFINED",
+   "primary": false
+  }
+ ],
+ "functions": [
+  {
+   "entry": "ram:02000d6c",
+   "name": "FUN_02000d6c",
+   "namespace": [],
+   "calling_convention": "unknown",
+   "thunk": false,
+   "varargs": false,
+   "no_return": false,
+   "custom_storage": false,
+   "body": [
+    {
+     "start": "ram:02000d6c",
+     "end": "ram:02000d7b"
+    }
+   ],
+   "prototype": "undefined FUN_02000d6c()",
+   "return_type": "/undefined",
+   "return_storage": "<UNASSIGNED>",
+   "parameters": []
+  },
+  {
+   "entry": "ram:02000d80",
+   "name": "scale",
+   "namespace": [
+    "Math"
+   ],
+   "calling_convention": "__stdcall",
+   "thunk": false,
+   "varargs": false,
+   "no_return": false,
+   "custom_storage": false,
+   "body": [
+    {
+     "start": "ram:02000d80",
+     "end": "ram:02000d8f"
+    },
+    {
+     "start": "ram:02000da0",
+     "end": "ram:02000da3"
+    }
+   ],
+   "prototype": "int scale(int x, point *p)",
+   "return_type": "/int",
+   "return_storage": "r0:4",
+   "parameters": [
+    {
+     "ordinal": 0,
+     "name": "x",
+     "data_type": "/int",
+     "storage": "r0:4"
+    },
+    {
+     "ordinal": 1,
+     "name": "p",
+     "data_type": "/point *",
+     "storage": "r1:4"
+    }
+   ]
+  }
+ ],
+ "data_types": [
+  {
+   "name": "int",
+   "path_name": "/int",
+   "category_path": "/",
+   "length": 4,
+   "alignment": 4,
+   "description": "",
+   "kind": "Other"
+  },
+  {
+   "name": "point",
+   "path_name": "/point",
+   "category_path": "/",
+   "length": 8,
+   "alignment": 4,
+   "description": "",
+   "kind": "Structure",
+   "components": [
+    {
+     "ordinal": 0,
+     "offset": 0,
+     "name": "x",
+     "data_type": "/int",
+     "length": 4
+    },
+    {
+     "ordinal": 1,
+     "offset": 4,
+     "name": "y",
+     "data_type": "/int",
+     "length": 4
+    }
+   ]
+  },
+  {
+   "name": "point *",
+   "path_name": "/point *",
+   "category_path": "/",
+   "length": 4,
+   "alignment": 4,
+   "description": "",
+   "kind": "Pointer",
+   "base": "/point"
+  }
+ ]
+}
