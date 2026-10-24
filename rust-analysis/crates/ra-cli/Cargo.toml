@@ -1,0 +1,26 @@
+[package]
+name = "ra-cli"
+description = "`ra`: Rust auto-analysis CLI with Ghidra differential regression"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "ra"
+path = "src/main.rs"
+
+[dependencies]
+ra-core.workspace = true
+ra-loader.workspace = true
+ra-sleigh.workspace = true
+ra-analysis.workspace = true
+ra-compare.workspace = true
+ra-demangle.workspace = true
+serde.workspace = true
+flate2.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+
+[dev-dependencies]
+insta.workspace = true

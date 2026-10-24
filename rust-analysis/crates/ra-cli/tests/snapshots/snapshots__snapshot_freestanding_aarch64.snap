@@ -1,0 +1,29 @@
+---
+source: crates/ra-cli/tests/snapshots.rs
+expression: "summary(\"freestanding-aarch64-clang-O2\")"
+---
+{
+  "counts": {
+    "blocks": 44,
+    "edges": 46,
+    "exports": 12,
+    "functions": 10,
+    "imports": 0,
+    "instructions": 198,
+    "xrefs": 41
+  },
+  "format": "ELF",
+  "functions": [
+    "0x2101ec halt_forever [0x2101ec-0x2101f8]",
+    "0x2101f8 dispatch [0x2101f8-0x2102d8]",
+    "0x2102d8 add [0x2102d8-0x2102e0]",
+    "0x2102e0 mul [0x2102e0-0x2102e8]",
+    "0x2102e8 sub [0x2102e8-0x2102f0]",
+    "0x2102f0 string_length [0x2102f0-0x210308]",
+    "0x210308 fold [0x210308-0x21039c]",
+    "0x21039c recurse [0x21039c-0x21043c]",
+    "0x21043c _start [0x21043c-0x2104a0]",
+    "0x2104a0 mainCRTStartup [0x2104a0-0x210504]"
+  ],
+  "language": "AARCH64:LE:64:v8A"
+}

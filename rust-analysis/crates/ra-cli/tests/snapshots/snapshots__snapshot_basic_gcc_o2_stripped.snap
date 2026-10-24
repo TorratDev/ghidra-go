@@ -1,0 +1,45 @@
+---
+source: crates/ra-cli/tests/snapshots.rs
+expression: "summary(\"basic-x86_64-gcc-O2-stripped\")"
+---
+{
+  "counts": {
+    "blocks": 62,
+    "edges": 41,
+    "exports": 3,
+    "functions": 26,
+    "imports": 11,
+    "instructions": 296,
+    "xrefs": 77
+  },
+  "format": "ELF",
+  "functions": [
+    "0x101000 _DT_INIT [0x101000-0x10101b]",
+    "0x101020 FUN_00101020 [0x101020-0x10102c]",
+    "0x101090 __cxa_finalize thunk [0x101090-0x10109a]",
+    "0x1010a0 abort thunk noreturn [0x1010a0-0x1010aa]",
+    "0x1010b0 strlen thunk [0x1010b0-0x1010ba]",
+    "0x1010c0 strtol thunk [0x1010c0-0x1010ca]",
+    "0x1010d0 __printf_chk thunk [0x1010d0-0x1010da]",
+    "0x1010e0 exit thunk noreturn [0x1010e0-0x1010ea]",
+    "0x1010f0 __fprintf_chk thunk [0x1010f0-0x1010fa]",
+    "0x101100 FUN_00101100 thunk noreturn [0x101100-0x101105]",
+    "0x101110 FUN_00101110 [0x101110-0x101246]",
+    "0x101250 entry [0x101250-0x101276]",
+    "0x101280 FUN_00101280 [0x101280-0x1012a1,0x1012a8-0x1012a9]",
+    "0x1012b0 FUN_001012b0 [0x1012b0-0x1012e2,0x1012e8-0x1012e9]",
+    "0x1012f0 _FINI_0 [0x1012f0-0x101325,0x101328-0x101329]",
+    "0x101330 _INIT_0 thunk [0x101330-0x101339]",
+    "0x101340 FUN_00101340 [0x101340-0x10134a]",
+    "0x101350 FUN_00101350 [0x101350-0x10135f]",
+    "0x101360 FUN_00101360 [0x101360-0x101369]",
+    "0x101370 FUN_00101370 noreturn [0x101370-0x1013a1]",
+    "0x1013b0 FUN_001013b0 [0x1013b0-0x1013cb]",
+    "0x1013d0 FUN_001013d0 [0x1013d0-0x101403,0x101408-0x10140b]",
+    "0x101410 FUN_00101410 [0x101410-0x10141f]",
+    "0x101420 FUN_00101420 [0x101420-0x101499,0x1014a0-0x1014a5]",
+    "0x1014b0 FUN_001014b0 [0x1014b0-0x1014c4]",
+    "0x1014c4 _DT_FINI [0x1014c4-0x1014d1]"
+  ],
+  "language": "x86:LE:64:default"
+}

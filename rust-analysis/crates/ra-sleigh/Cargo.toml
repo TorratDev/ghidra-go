@@ -1,0 +1,15 @@
+[package]
+name = "ra-sleigh"
+description = "Instruction decoding and p-code lifting over Ghidra SLEIGH specifications"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+sleigh-compile.workspace = true
+sleigh-runtime.workspace = true
+pcode.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+sleigh-runtime.workspace = true

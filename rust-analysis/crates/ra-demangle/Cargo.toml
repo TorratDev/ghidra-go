@@ -1,0 +1,17 @@
+[package]
+name = "ra-demangle"
+description = "GNU (Itanium), Rust and MSVC demangling with Ghidra's naming rules"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+cpp_demangle.workspace = true
+msvc-demangler.workspace = true
+rustc-demangle.workspace = true
+regex.workspace = true
+
+[dev-dependencies]
+serde.workspace = true
+serde_json.workspace = true
+flate2.workspace = true
