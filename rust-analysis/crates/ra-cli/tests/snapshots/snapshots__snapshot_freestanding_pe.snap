@@ -1,0 +1,27 @@
+---
+source: crates/ra-cli/tests/snapshots.rs
+expression: "summary(\"freestanding-x86_64-pe-clang-O2.exe\")"
+---
+{
+  "counts": {
+    "blocks": 34,
+    "edges": 35,
+    "exports": 1,
+    "functions": 8,
+    "imports": 0,
+    "instructions": 220,
+    "xrefs": 49
+  },
+  "format": "PE",
+  "functions": [
+    "0x140001000 FUN_140001000 [0x140001000-0x14000100c]",
+    "0x140001010 FUN_140001010 [0x140001010-0x140001091,0x1400010a0-0x1400010a4]",
+    "0x1400010b0 FUN_1400010b0 [0x1400010b0-0x1400010b6]",
+    "0x1400010c0 FUN_1400010c0 [0x1400010c0-0x1400010c5]",
+    "0x1400010d0 FUN_1400010d0 [0x1400010d0-0x1400010e9]",
+    "0x1400010f0 FUN_1400010f0 [0x1400010f0-0x140001183]",
+    "0x140001190 FUN_140001190 [0x140001190-0x1400012ab]",
+    "0x1400012b0 entry [0x1400012b0-0x14000136b]"
+  ],
+  "language": "x86:LE:64:default"
+}

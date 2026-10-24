@@ -1,0 +1,10 @@
+[package]
+name = "ra-core"
+description = "Program model shared by the loader, analyzers and comparison tooling"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true

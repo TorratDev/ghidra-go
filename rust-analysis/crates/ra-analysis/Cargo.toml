@@ -1,0 +1,15 @@
+[package]
+name = "ra-analysis"
+description = "Auto-analysis passes: disassembly, functions, thunks, no-return, byte patterns, CFG, references"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ra-core.workspace = true
+ra-loader.workspace = true
+ra-sleigh.workspace = true
+pcode.workspace = true
+quick-xml.workspace = true
+ra-demangle.workspace = true
+anyhow.workspace = true

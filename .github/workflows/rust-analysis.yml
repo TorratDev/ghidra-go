@@ -1,0 +1,76 @@
+name: rust-analysis
+
+on:
+  push:
+    paths:
+      - "rust-analysis/**"
+      - "Ghidra/Processors/**/data/**"
+      - "Ghidra/Features/Base/data/*FunctionsThatDoNotReturn"
+      - ".github/workflows/rust-analysis.yml"
+  pull_request:
+    paths:
+      - "rust-analysis/**"
+      - ".github/workflows/rust-analysis.yml"
+
+env:
+  CARGO_TERM_COLOR: always
+  GHIDRA_VERSION: "12.1.4"
+  GHIDRA_ZIP: ghidra_12.1.4_PUBLIC_20260921.zip
+  GHIDRA_SHA256: ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db
+
+jobs:
+  # Unit tests, snapshots, parity inventory, and the differential gate
+  # against the committed Ghidra exports.
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust-analysis
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust-analysis
+      - run: cargo fmt --all --check
+      - run: cargo clippy --release --all-targets -- -D warnings
+      - run: cargo test --release
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: differential-report-offline
+          path: rust-analysis/target/compare-report/
+
+  # Live differential regression: runs real Ghidra headless on the corpus,
+  # checks the committed exports are still what this Ghidra produces, and
+  # compares ra against the fresh exports.
+  live-vs-ghidra:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust-analysis
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust-analysis
+      - name: Download Ghidra ${{ env.GHIDRA_VERSION }}
+        run: |
+          curl -sSL -o "$RUNNER_TEMP/ghidra.zip" \
+            "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_${GHIDRA_VERSION}_build/${GHIDRA_ZIP}"
+          echo "${GHIDRA_SHA256}  $RUNNER_TEMP/ghidra.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/ghidra.zip" -d "$RUNNER_TEMP"
+          echo "GHIDRA_INSTALL_DIR=$RUNNER_TEMP/ghidra_${GHIDRA_VERSION}_PUBLIC" >> "$GITHUB_ENV"
+      - run: ./compare/run.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: differential-report-live
+          path: rust-analysis/compare/work/report/

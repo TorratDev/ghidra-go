@@ -1,0 +1,44 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+rust-version = "1.80"
+
+[workspace.dependencies]
+ra-core = { path = "crates/ra-core" }
+ra-loader = { path = "crates/ra-loader" }
+ra-sleigh = { path = "crates/ra-sleigh" }
+ra-analysis = { path = "crates/ra-analysis" }
+ra-compare = { path = "crates/ra-compare" }
+ra-demangle = { path = "crates/ra-demangle" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+object = { version = "0.36", default-features = false, features = ["read", "std"] }
+anyhow = "1"
+goblin = "0.9"
+gimli = { version = "0.31", default-features = false, features = ["read", "std"] }
+sha2 = "0.10"
+insta = { version = "1", features = ["json"] }
+thiserror = "1"
+clap = { version = "4", features = ["derive"] }
+quick-xml = "0.36"
+toml = "0.8"
+flate2 = "1"
+cpp_demangle = "0.5.1"
+msvc-demangler = "0.11.0"
+rustc-demangle = "0.1.28"
+regex = "1"
+# Icicle's SLEIGH implementation is not published to crates.io.
+sleigh-compile = { git = "https://github.com/icicle-emu/icicle-emu", rev = "638508b72f480f9be6fe2e267ef09de8f1541f9a" }
+sleigh-runtime = { git = "https://github.com/icicle-emu/icicle-emu", rev = "638508b72f480f9be6fe2e267ef09de8f1541f9a" }
+pcode = { git = "https://github.com/icicle-emu/icicle-emu", rev = "638508b72f480f9be6fe2e267ef09de8f1541f9a" }
+
+[profile.release]
+debug = 1
+
+[profile.dev.package."*"]
+opt-level = 2

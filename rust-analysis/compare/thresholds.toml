@@ -1,0 +1,1526 @@
+# Minimum precision/recall per binary and category, versus Ghidra.
+# Ratchet: `ra regress --update-thresholds` only ever raises these.
+
+[binaries.basic-x86_64-clang-O0.blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0.edges]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0.exports]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0.function_bodies]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0.function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0.functions]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0.imports]
+recall = 1.0
+precision = 0.916
+
+[binaries.basic-x86_64-clang-O0.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0.instructions]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0.memory_blocks]
+recall = 0.961
+precision = 0.961
+
+[binaries.basic-x86_64-clang-O0.no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0.symbols]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0.thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0.xrefs_data]
+recall = 0.947
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0.xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0.xrefs_flow]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0.xrefs_from_data]
+recall = 0.024
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0-stripped.blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0-stripped.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0-stripped.edges]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0-stripped.exports]
+recall = 0.285
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0-stripped.function_bodies]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0-stripped.function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0-stripped.functions]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0-stripped.imports]
+recall = 1.0
+precision = 0.916
+
+[binaries.basic-x86_64-clang-O0-stripped.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0-stripped.instructions]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0-stripped.memory_blocks]
+recall = 0.961
+precision = 0.961
+
+[binaries.basic-x86_64-clang-O0-stripped.no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0-stripped.symbols]
+recall = 0.944
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0-stripped.thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0-stripped.xrefs_data]
+recall = 0.947
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0-stripped.xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0-stripped.xrefs_flow]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O0-stripped.xrefs_from_data]
+recall = 0.022
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2.blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2.edges]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2.exports]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2.function_bodies]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2.function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2.functions]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2.imports]
+recall = 1.0
+precision = 0.916
+
+[binaries.basic-x86_64-clang-O2.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2.instructions]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2.memory_blocks]
+recall = 0.962
+precision = 0.962
+
+[binaries.basic-x86_64-clang-O2.no_return]
+recall = 1.0
+precision = 0.666
+
+[binaries.basic-x86_64-clang-O2.symbols]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2.thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2.xrefs_data]
+recall = 0.909
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2.xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2.xrefs_flow]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2.xrefs_from_data]
+recall = 0.024
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2-stripped.blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2-stripped.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2-stripped.edges]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2-stripped.exports]
+recall = 0.285
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2-stripped.function_bodies]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2-stripped.function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2-stripped.functions]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2-stripped.imports]
+recall = 1.0
+precision = 0.916
+
+[binaries.basic-x86_64-clang-O2-stripped.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2-stripped.instructions]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2-stripped.memory_blocks]
+recall = 0.962
+precision = 0.962
+
+[binaries.basic-x86_64-clang-O2-stripped.no_return]
+recall = 1.0
+precision = 0.666
+
+[binaries.basic-x86_64-clang-O2-stripped.symbols]
+recall = 0.944
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2-stripped.thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2-stripped.xrefs_data]
+recall = 0.909
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2-stripped.xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2-stripped.xrefs_flow]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-clang-O2-stripped.xrefs_from_data]
+recall = 0.023
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.edges]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.exports]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.function_bodies]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.functions]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.imports]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.instructions]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.memory_blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.symbols]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.xrefs_data]
+recall = 0.95
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.xrefs_flow]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0.xrefs_from_data]
+recall = 0.023
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.edges]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.exports]
+recall = 0.375
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.function_bodies]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.functions]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.imports]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.instructions]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.memory_blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.symbols]
+recall = 0.947
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.xrefs_data]
+recall = 0.95
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.xrefs_flow]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O0-stripped.xrefs_from_data]
+recall = 0.021
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.edges]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.exports]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.function_bodies]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.functions]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.imports]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.instructions]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.memory_blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.symbols]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.xrefs_data]
+recall = 0.937
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.xrefs_flow]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2.xrefs_from_data]
+recall = 0.022
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.blocks]
+recall = 0.88
+precision = 0.94
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.edges]
+recall = 0.874
+precision = 0.925
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.exports]
+recall = 0.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.function_bodies]
+recall = 0.886
+precision = 0.886
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.function_names]
+recall = 0.125
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.functions]
+recall = 0.993
+precision = 0.973
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.imports]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.instructions]
+recall = 0.884
+precision = 0.94
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.memory_blocks]
+recall = 0.809
+precision = 0.85
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.no_return]
+recall = 0.866
+precision = 0.282
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.symbols]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.thunks]
+recall = 0.172
+precision = 0.161
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.xrefs_data]
+recall = 0.748
+precision = 0.987
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.xrefs_data_kinds]
+recall = 0.952
+precision = 0.952
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.xrefs_flow]
+recall = 0.896
+precision = 0.926
+
+[binaries.basic-x86_64-gcc-O2-static-stripped.xrefs_from_data]
+recall = 0.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.edges]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.exports]
+recall = 0.375
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.function_bodies]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.functions]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.imports]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.instructions]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.memory_blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.symbols]
+recall = 0.947
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.xrefs_data]
+recall = 0.937
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.xrefs_flow]
+recall = 1.0
+precision = 1.0
+
+[binaries.basic-x86_64-gcc-O2-stripped.xrefs_from_data]
+recall = 0.02
+precision = 1.0
+
+[binaries."cxx-msvc-i386.dll".blocks]
+recall = 0.888
+precision = 0.774
+
+[binaries."cxx-msvc-i386.dll".demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-i386.dll".edges]
+recall = 0.6
+precision = 0.4
+
+[binaries."cxx-msvc-i386.dll".exports]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-i386.dll".function_bodies]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-i386.dll".function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-i386.dll".functions]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-i386.dll".imports]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-i386.dll".instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-i386.dll".instructions]
+recall = 0.992
+precision = 1.0
+
+[binaries."cxx-msvc-i386.dll".memory_blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-i386.dll".no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-i386.dll".symbols]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-i386.dll".thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-i386.dll".xrefs_data]
+recall = 0.285
+precision = 0.25
+
+[binaries."cxx-msvc-i386.dll".xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-i386.dll".xrefs_flow]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-i386.dll".xrefs_from_data]
+recall = 0.0
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".blocks]
+recall = 0.964
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".edges]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".exports]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".function_bodies]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".functions]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".imports]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".instructions]
+recall = 0.989
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".memory_blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".symbols]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".xrefs_data]
+recall = 0.583
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".xrefs_flow]
+recall = 1.0
+precision = 1.0
+
+[binaries."cxx-msvc-x86_64.dll".xrefs_from_data]
+recall = 0.0
+precision = 1.0
+
+[binaries.demangle-oracle.GnuDemangler]
+recall = 0.974
+precision = 0.98
+
+[binaries.demangle-oracle.MicrosoftDemangler]
+recall = 0.533
+precision = 0.869
+
+[binaries.demangle-oracle.RustDemangler]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O0.blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O0.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O0.edges]
+recall = 0.982
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O0.exports]
+recall = 1.0
+precision = 0.75
+
+[binaries.freestanding-aarch64-clang-O0.function_bodies]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O0.function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O0.functions]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O0.imports]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O0.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O0.instructions]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O0.memory_blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O0.no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O0.symbols]
+recall = 1.0
+precision = 0.777
+
+[binaries.freestanding-aarch64-clang-O0.thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O0.xrefs_data]
+recall = 0.428
+precision = 0.75
+
+[binaries.freestanding-aarch64-clang-O0.xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O0.xrefs_flow]
+recall = 0.981
+precision = 0.981
+
+[binaries.freestanding-aarch64-clang-O0.xrefs_from_data]
+recall = 0.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O2.blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O2.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O2.edges]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O2.exports]
+recall = 1.0
+precision = 0.75
+
+[binaries.freestanding-aarch64-clang-O2.function_bodies]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O2.function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O2.functions]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O2.imports]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O2.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O2.instructions]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O2.memory_blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O2.no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O2.symbols]
+recall = 1.0
+precision = 0.736
+
+[binaries.freestanding-aarch64-clang-O2.thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O2.xrefs_data]
+recall = 0.384
+precision = 0.714
+
+[binaries.freestanding-aarch64-clang-O2.xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O2.xrefs_flow]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-aarch64-clang-O2.xrefs_from_data]
+recall = 0.0
+precision = 1.0
+
+[binaries.freestanding-i386-clang-O2.blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-i386-clang-O2.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-i386-clang-O2.edges]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-i386-clang-O2.exports]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-i386-clang-O2.function_bodies]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-i386-clang-O2.function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-i386-clang-O2.functions]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-i386-clang-O2.imports]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-i386-clang-O2.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-i386-clang-O2.instructions]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-i386-clang-O2.memory_blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-i386-clang-O2.no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-i386-clang-O2.symbols]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-i386-clang-O2.thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-i386-clang-O2.xrefs_data]
+recall = 0.714
+precision = 0.909
+
+[binaries.freestanding-i386-clang-O2.xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-i386-clang-O2.xrefs_flow]
+recall = 1.0
+precision = 0.972
+
+[binaries.freestanding-i386-clang-O2.xrefs_from_data]
+recall = 0.0
+precision = 1.0
+
+[binaries."freestanding-i386-pe-clang-O2.exe".blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-i386-pe-clang-O2.exe".demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-i386-pe-clang-O2.exe".edges]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-i386-pe-clang-O2.exe".exports]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-i386-pe-clang-O2.exe".function_bodies]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-i386-pe-clang-O2.exe".function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-i386-pe-clang-O2.exe".functions]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-i386-pe-clang-O2.exe".imports]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-i386-pe-clang-O2.exe".instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-i386-pe-clang-O2.exe".instructions]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-i386-pe-clang-O2.exe".memory_blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-i386-pe-clang-O2.exe".no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-i386-pe-clang-O2.exe".symbols]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-i386-pe-clang-O2.exe".thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-i386-pe-clang-O2.exe".xrefs_data]
+recall = 0.714
+precision = 0.909
+
+[binaries."freestanding-i386-pe-clang-O2.exe".xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-i386-pe-clang-O2.exe".xrefs_flow]
+recall = 1.0
+precision = 0.972
+
+[binaries."freestanding-i386-pe-clang-O2.exe".xrefs_from_data]
+recall = 0.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.edges]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.exports]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.function_bodies]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.functions]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.imports]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.instructions]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.memory_blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.symbols]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.xrefs_data]
+recall = 0.789
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.xrefs_flow]
+recall = 0.939
+precision = 1.0
+
+[binaries.freestanding-x86_64-clang-O2.xrefs_from_data]
+recall = 0.0
+precision = 1.0
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".edges]
+recall = 1.0
+precision = 0.971
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".exports]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".function_bodies]
+recall = 0.875
+precision = 0.875
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".functions]
+recall = 0.888
+precision = 1.0
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".imports]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".instructions]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".memory_blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".symbols]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".xrefs_data]
+recall = 0.809
+precision = 1.0
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".xrefs_flow]
+recall = 0.911
+precision = 0.968
+
+[binaries."freestanding-x86_64-pe-clang-O2.exe".xrefs_from_data]
+recall = 0.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2.blocks]
+recall = 0.984
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2.edges]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2.exports]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2.function_bodies]
+recall = 0.975
+precision = 0.975
+
+[binaries.objects-x86_64-gxx-O2.function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2.functions]
+recall = 1.0
+precision = 0.976
+
+[binaries.objects-x86_64-gxx-O2.imports]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2.instructions]
+recall = 0.996
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2.memory_blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2.no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2.symbols]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2.thunks]
+recall = 1.0
+precision = 0.941
+
+[binaries.objects-x86_64-gxx-O2.xrefs_data]
+recall = 0.848
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2.xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2.xrefs_flow]
+recall = 0.926
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2.xrefs_from_data]
+recall = 0.021
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2-stripped.blocks]
+recall = 0.984
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2-stripped.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2-stripped.edges]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2-stripped.exports]
+recall = 0.4
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2-stripped.function_bodies]
+recall = 0.975
+precision = 0.975
+
+[binaries.objects-x86_64-gxx-O2-stripped.function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2-stripped.functions]
+recall = 1.0
+precision = 0.976
+
+[binaries.objects-x86_64-gxx-O2-stripped.imports]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2-stripped.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2-stripped.instructions]
+recall = 0.996
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2-stripped.memory_blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2-stripped.no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2-stripped.symbols]
+recall = 0.95
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2-stripped.thunks]
+recall = 1.0
+precision = 0.941
+
+[binaries.objects-x86_64-gxx-O2-stripped.xrefs_data]
+recall = 0.848
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2-stripped.xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2-stripped.xrefs_flow]
+recall = 0.926
+precision = 1.0
+
+[binaries.objects-x86_64-gxx-O2-stripped.xrefs_from_data]
+recall = 0.021
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.edges]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.exports]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.function_bodies]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.functions]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.imports]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.instructions]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.memory_blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.symbols]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.xrefs_data]
+recall = 0.8
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.xrefs_flow]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-legacy.xrefs_from_data]
+recall = 0.0
+precision = 1.0
+
+[binaries.rust-x86_64-v0.blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-v0.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-v0.edges]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-v0.exports]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-v0.function_bodies]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-v0.function_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-v0.functions]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-v0.imports]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-v0.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-v0.instructions]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-v0.memory_blocks]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-v0.no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-v0.symbols]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-v0.thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-v0.xrefs_data]
+recall = 0.8
+precision = 1.0
+
+[binaries.rust-x86_64-v0.xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-v0.xrefs_flow]
+recall = 1.0
+precision = 1.0
+
+[binaries.rust-x86_64-v0.xrefs_from_data]
+recall = 0.0
+precision = 1.0

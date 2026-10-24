@@ -1,0 +1,197 @@
+[
+ {
+  "mangled": "_ZN43_$LT$char$u20$as$u20$core..fmt..Display$GT$3fmt17h31c4c24bbd08aa24E"
+ },
+ {
+  "mangled": "_ZN4core6option13expect_failed17h09b982639336e7eaE"
+ },
+ {
+  "mangled": "_ZN4core3fmt9Formatter15debug_lower_hex17heb5fb064687c1b3cE"
+ },
+ {
+  "mangled": "_ZN3std4path10Components7as_path17h3cc3e688e3107704E"
+ },
+ {
+  "mangled": "_ZN5alloc5alloc18handle_alloc_error8rt_error17h4b79f8a717741b7cE"
+ },
+ {
+  "mangled": "_ZN3std6thread7current17h20e47a880e55afd5E"
+ },
+ {
+  "mangled": "_ZN151_$LT$alloc..boxed..Box$LT$alloc..boxed..FnBox$LT$A$C$$u20$Output$u3d$R$GT$$u20$$u2b$$u20$$u27$a$GT$$u20$as$u20$core..ops..function..FnOnce$LT$A$GT$$GT$9call_once17h69e8f44b3723e1caE"
+ },
+ {
+  "mangled": "_ZN88_$LT$core..result..Result$LT$$u21$$C$$u20$E$GT$$u20$as$u20$std..process..Termination$GT$6report17hfc41d0da4a40b3e8E"
+ },
+ {
+  "mangled": "_ZN3foo3bar3bazE"
+ },
+ {
+  "mangled": "_ZN7unicode12$u2202$valueE"
+ },
+ {
+  "mangled": "_RNvCsL39EUhRVRM_5tests4main"
+ },
+ {
+  "mangled": "_RNvCsL39EUhRVRM_5tests6test_1"
+ },
+ {
+  "mangled": "_RNvMCsL39EUhRVRM_5testsNtB2_10TestStruct8method_1"
+ },
+ {
+  "mangled": "_RNvNtNtCsL39EUhRVRM_5tests5stuff6stuff26test_3"
+ },
+ {
+  "mangled": "_RNCINvNtCsekVQb2M45Qb_3std2rt10lang_startuE0CsL39EUhRVRM_5tests.llvm.3070730145566890858"
+ },
+ {
+  "mangled": "_RNvYNtNtCsheJZGYyU57U_5alloc6string6StringNtNtCscuN2HtZYDVi_4core3fmt5Write9write_fmtCsL39EUhRVRM_5tests"
+ },
+ {
+  "mangled": "_RNSNvYNCINvNtCsekVQb2M45Qb_3std2rt10lang_startuE0INtNtNtCscuN2HtZYDVi_4core3ops8function6FnOnceuE9call_once6vtableCsL39EUhRVRM_5tests.llvm.3070730145566890858"
+ },
+ {
+  "mangled": "_RNvXss_NtCsheJZGYyU57U_5alloc3vecINtB5_3VecAhj4_ENtNtCscuN2HtZYDVi_4core3fmt5Debug3fmtCsL39EUhRVRM_5tests"
+ },
+ {
+  "mangled": "_RNSNvYNCINvNtCsekVQb2M45Qb_3std2rt10lang_startuE0INtNtNtCscuN2HtZYDVi_4core3ops8function6FnOnceuE9call_once6vtableCsL39EUhRVRM_5tests.llvm.6912067296627029035"
+ },
+ {
+  "mangled": "_RNvXs_CsL39EUhRVRM_5testsNtB4_10TestStructNtB4_9TestTrait14trait_method_1"
+ },
+ {
+  "mangled": "_RNvXs_CsL39EUhRVRM_5testsNtB4_10TestStructNtB4_9TestTrait14trait_method_2"
+ },
+ {
+  "mangled": "_RNvXs_CsL39EUhRVRM_5testsNtB4_10TestStructNtB4_9TestTrait14trait_method_3"
+ },
+ {
+  "mangled": "_RNvXNtCscuN2HtZYDVi_4core3fmtQNtNtCsheJZGYyU57U_5alloc6string6StringNtB2_5Write10write_charCsL39EUhRVRM_5tests"
+ },
+ {
+  "mangled": "_RNvXNtCscuN2HtZYDVi_4core3fmtQNtNtCsheJZGYyU57U_5alloc6string6StringNtB2_5Write9write_fmtCsL39EUhRVRM_5tests"
+ },
+ {
+  "mangled": "_RNvXNtCscuN2HtZYDVi_4core3fmtQNtNtCsheJZGYyU57U_5alloc6string6StringNtB2_5Write9write_strCsL39EUhRVRM_5tests"
+ },
+ {
+  "mangled": "_RNvNtCsL39EUhRVRM_5tests5stuff6test_2"
+ },
+ {
+  "mangled": "_RNvMs_NtCsheJZGYyU57U_5alloc7raw_vecINtB4_6RawVechE16reserve_for_pushCsL39EUhRVRM_5tests"
+ },
+ {
+  "mangled": "_RNvXsX_NtCscuN2HtZYDVi_4core3fmtReNtB5_7Display3fmtCsL39EUhRVRM_5tests"
+ },
+ {
+  "mangled": "_RNvXsV_NtCscuN2HtZYDVi_4core3fmtRAhj4_NtB5_5Debug3fmtCsL39EUhRVRM_5tests"
+ },
+ {
+  "mangled": "_RNvXsV_NtCscuN2HtZYDVi_4core3fmtRhNtB5_5Debug3fmtCsL39EUhRVRM_5tests"
+ },
+ {
+  "mangled": "_RNCINkXs25_NgCsbmNqQUJIY6D_4core5sliceINyB9_4IterhENuNgNoBb_4iter8iterator8Iterator9rpositionNCNgNpB9_6memchr7memrchrs_0E0Bb_"
+ },
+ {
+  "mangled": "_RNvC6_123foo3bar"
+ },
+ {
+  "mangled": "_RC4f128"
+ },
+ {
+  "mangled": "_RNqCs4fqI2P2rA04_11utf8_identsu30____7hkackfecea1cbdathfdh9hlq6y"
+ },
+ {
+  "mangled": "_RNCNCNgCs6DXkGYLi8lr_2cc5spawn00B5_"
+ },
+ {
+  "mangled": "_RINbNbCskIICzLVDPPb_5alloc5alloc8box_freeDINbNiB4_5boxed5FnBoxuEp6OutputuEL_ECs1iopQbuBiw2_3std"
+ },
+ {
+  "mangled": "_RMC0WmRm1_m9_"
+ },
+ {
+  "mangled": "_RMC0WmORm1_m2_Rm5_m6_E"
+ },
+ {
+  "mangled": "_RMC0WmORm1_m2_Rm5_m6_"
+ },
+ {
+  "mangled": "_RMC0INtC8arrayvec8ArrayVechKj7b_E"
+ },
+ {
+  "mangled": "_RMC0"
+ },
+ {
+  "mangled": "_RC3foo.llvm.9D1C9369"
+ },
+ {
+  "mangled": "_RC3foo.llvm.9D1C9369@@16"
+ },
+ {
+  "mangled": "_RNvC9backtrace3foo.llvm.A5310EB9"
+ },
+ {
+  "mangled": "_RNvNtNtNtNtCs92dm3009vxr_4rand4rngs7adapter9reseeding4fork23FORK_HANDLER_REGISTERED.0.0"
+ },
+ {
+  "mangled": "_RNvMsr_NtCs3ssYzQotkvD_3std4pathNtB5_7PathBuf3newCs15kBYyAo9fc_7mycrate"
+ },
+ {
+  "mangled": "_RNvCs15kBYyAo9fc_7mycrate7example"
+ },
+ {
+  "mangled": "_RNvMs_Cs4Cv8Wi1oAIB_7mycrateNtB4_7Example3foo"
+ },
+ {
+  "mangled": "_RNvXCs15kBYyAo9fc_7mycrateNtB2_7ExampleNtB2_5Trait3foo"
+ },
+ {
+  "mangled": "_RNvMCs7qp2U7fqm6G_7mycrateNtB2_7Example3foo"
+ },
+ {
+  "mangled": "_RNvMs_Cs7qp2U7fqm6G_7mycrateNtB4_7Example3bar"
+ },
+ {
+  "mangled": "_RNvYNtCs15kBYyAo9fc_7mycrate7ExampleNtB4_5Trait7exampleB4_"
+ },
+ {
+  "mangled": "_RNCNvCsgStHSCytQ6I_7mycrate4main0B3_"
+ },
+ {
+  "mangled": "_RNCNvCsgStHSCytQ6I_7mycrate4mains_0B3_"
+ },
+ {
+  "mangled": "_RINvCsgStHSCytQ6I_7mycrate7examplelKj1_EB2_"
+ },
+ {
+  "mangled": "_RINvCs7qp2U7fqm6G_7mycrate7exampleFG0_RL1_hRL0_tEuEB2_"
+ },
+ {
+  "mangled": "_RINvCs7qp2U7fqm6G_7mycrate7exampleKy12345678_EB2_"
+ },
+ {
+  "mangled": "_RNvNvMCsd9PVOYlP1UU_7mycrateINtB4_7ExamplepKpE3foo14EXAMPLE_STATIC"
+ },
+ {
+  "mangled": "_RINvCs7qp2U7fqm6G_7mycrate7exampleAtj8_EB2_"
+ },
+ {
+  "mangled": "_RINvCs7qp2U7fqm6G_7mycrate7exampleNtB2_7ExampleBw_EB2_"
+ },
+ {
+  "mangled": "_RINvMsY_NtCseXNvpPnDBDp_3std4pathNtB6_4Path3neweECs7qp2U7fqm6G_7mycrate"
+ },
+ {
+  "mangled": "_RNvNvNvCs7qp2U7fqm6G_7mycrate7EXAMPLE7___getit5___KEY"
+ },
+ {
+  "mangled": "_RIC0p"
+ },
+ {
+  "mangled": "_RIC"
+ },
+ {
+  "mangled": "_RIC0K"
+ }
+]
