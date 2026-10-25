@@ -1,5 +1,7 @@
-// Command ra is the Go port of the ra CLI. So far it has the compare and
-// regress subcommands; analysis is not ported yet.
+// Command ra is the Go port of the ra CLI: analyze, compare and regress.
+// Instruction decoding goes through the Java SLEIGH bridge, set up by
+// GHIDRA_INSTALL_DIR, RA_SLEIGH_BRIDGE_CP and RA_SLEIGH_BRIDGE_JAVA (or
+// JAVA_HOME); see go/tools/sleigh-bridge/README.md.
 package main
 
 import (
@@ -10,7 +12,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/TorratDev/ghidra/go/internal/ra/analysis"
 	"github.com/TorratDev/ghidra/go/internal/ra/compare"
+	"github.com/TorratDev/ghidra/go/internal/ra/core"
 )
 
 func main() {
@@ -19,6 +23,8 @@ func main() {
 	}
 	var err error
 	switch os.Args[1] {
+	case "analyze":
+		err = runAnalyze(os.Args[2:])
 	case "compare":
 		err = runCompare(os.Args[2:])
 	case "regress":
@@ -33,8 +39,68 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: ra compare [--json] GHIDRA RA | ra regress [flags]")
+	fmt.Fprintln(os.Stderr, "usage: ra analyze [flags] BINARY | ra compare [--json] GHIDRA RA | ra regress [flags]")
 	os.Exit(2)
+}
+
+// bridgeFromEnv reads the bridge setup from the environment.
+func bridgeFromEnv() (analysis.BridgeConfig, string, error) {
+	cfg := analysis.BridgeConfig{
+		Java:      os.Getenv("RA_SLEIGH_BRIDGE_JAVA"),
+		ClassPath: os.Getenv("RA_SLEIGH_BRIDGE_CP"),
+		GhidraDir: os.Getenv("GHIDRA_INSTALL_DIR"),
+	}
+	if cfg.Java == "" && os.Getenv("JAVA_HOME") != "" {
+		cfg.Java = filepath.Join(os.Getenv("JAVA_HOME"), "bin", "java")
+	}
+	if cfg.Java == "" || cfg.ClassPath == "" || cfg.GhidraDir == "" {
+		return cfg, "", fmt.Errorf("the SLEIGH bridge is not configured: set GHIDRA_INSTALL_DIR, RA_SLEIGH_BRIDGE_CP and RA_SLEIGH_BRIDGE_JAVA (or JAVA_HOME)")
+	}
+	return cfg, filepath.Join(cfg.GhidraDir, "Ghidra", "Processors"), nil
+}
+
+func runAnalyze(args []string) error {
+	fs := flag.NewFlagSet("analyze", flag.ExitOnError)
+	language := fs.String("language", "", "Ghidra language id (required for raw binaries)")
+	output := fs.String("o", "", "write the report here instead of stdout")
+	fs.StringVar(output, "output", "", "same as -o")
+	noPatterns := fs.Bool("no-patterns", false, "skip the byte-pattern function start search")
+	processors := fs.String("processors", "", "Ghidra Processors directory (default: GHIDRA_INSTALL_DIR/Ghidra/Processors)")
+	fs.Usage = func() {
+		fmt.Fprintln(os.Stderr, "usage: ra analyze [flags] BINARY\nAnalyze a binary and print the normalized JSON report.")
+		fs.PrintDefaults()
+	}
+	fs.Parse(args)
+	if fs.NArg() != 1 {
+		fs.Usage()
+		os.Exit(2)
+	}
+	bridge, proc, err := bridgeFromEnv()
+	if err != nil {
+		return err
+	}
+	if *processors != "" {
+		proc = *processors
+	}
+	opts := analysis.DefaultOptions()
+	opts.Patterns = !*noPatterns
+	report, err := analysis.AnalyzeFile(fs.Arg(0), *language, bridge, proc, opts)
+	if err != nil {
+		return err
+	}
+	return writeReport(report, *output)
+}
+
+func writeReport(r *core.AnalysisReport, output string) error {
+	b, err := json.MarshalIndent(r, "", "  ")
+	if err != nil {
+		return err
+	}
+	if output == "" {
+		fmt.Println(string(b))
+		return nil
+	}
+	return os.WriteFile(output, b, 0o644)
 }
 
 func runCompare(args []string) error {
@@ -86,7 +152,18 @@ func runRegress(args []string) error {
 	fs.StringVar(&cfg.ReportDir, "report-dir", "", "write per-binary reports, report.md and report.json here")
 	fs.BoolVar(&cfg.UpdateThresholds, "update-thresholds", false, "raise thresholds to the current results (ratchet); also creates a missing thresholds file")
 	fs.StringVar(&cfg.Filter, "filter", "", "substring match on the binary name: only matching corpus binaries are run and only matching gates are checked; \"demangle-oracle\" is included when the filter is a substring of it")
+	processors := fs.String("processors", "", "Ghidra Processors directory (default: GHIDRA_INSTALL_DIR/Ghidra/Processors)")
 	fs.Parse(args)
+	bridge, proc, err := bridgeFromEnv()
+	if err != nil {
+		return err
+	}
+	if *processors != "" {
+		proc = *processors
+	}
+	cfg.Analyze = func(path string) (*core.AnalysisReport, error) {
+		return analysis.AnalyzeFile(path, "", bridge, proc, analysis.DefaultOptions())
+	}
 	out, err := compare.Regress(cfg)
 	if err != nil {
 		return err
