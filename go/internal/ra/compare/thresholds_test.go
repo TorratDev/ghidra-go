@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -164,25 +165,88 @@ func TestCommittedThresholdsRoundTrip(t *testing.T) {
 
 func TestParseThresholdsRejectsMalformed(t *testing.T) {
 	ok := "[binaries.a.b]\nrecall = 1.0\nprecision = 0.5\n"
-	if th, err := parseThresholds([]byte("# c\n\n" + ok + "\n[binaries.\"x.y\".\"c\"]\nrecall = 0.1\nprecision = 0.2\n")); err != nil ||
-		th.Binaries["a"]["b"] != (Gate{1, 0.5}) || th.Binaries["x.y"]["c"] != (Gate{0.1, 0.2}) {
+	if th, err := parseThresholds([]byte("# c\n\n" + ok + "\n[binaries.\"x.y\".\"c\"]\nrecall = 0\nprecision = 1\n")); err != nil ||
+		th.Binaries["a"]["b"] != (Gate{1, 0.5}) || th.Binaries["x.y"]["c"] != (Gate{0, 1}) {
 		t.Fatalf("%v %+v", err, th)
 	}
+	hdr := "[binaries.a.b]\n"
 	for name, in := range map[string]string{
 		"key outside a table": "recall = 1.0\n",
-		"missing precision":   "[binaries.a.b]\nrecall = 1.0\n",
-		"unknown key":         "[binaries.a.b]\nrecall = 1.0\nprecision = 1.0\nrecal = 1.0\n",
-		"duplicate key":       "[binaries.a.b]\nrecall = 1.0\nrecall = 1.0\nprecision = 1.0\n",
-		"not a float":         "[binaries.a.b]\nrecall = high\nprecision = 1.0\n",
+		"missing precision":   hdr + "recall = 1.0\n",
+		"unknown key":         hdr + "recall = 1.0\nprecision = 1.0\nrecal = 1.0\n",
+		"duplicate key":       hdr + "recall = 1.0\nrecall = 1.0\nprecision = 1.0\n",
+		"not a number":        hdr + "recall = high\nprecision = 1.0\n",
+		"nan":                 hdr + "recall = nan\nprecision = 1.0\n",
+		"NaN":                 hdr + "recall = NaN\nprecision = 1.0\n",
+		"inf":                 hdr + "recall = 1.0\nprecision = inf\n",
+		"hex float":           hdr + "recall = 0x1p-1\nprecision = 1.0\n",
+		"negative":            hdr + "recall = -1\nprecision = 1.0\n",
+		"negative zero":       hdr + "recall = -0.0\nprecision = 1.0\n",
+		"above one":           hdr + "recall = 5\nprecision = 1.0\n",
+		"just above one":      hdr + "recall = 1.5\nprecision = 1.0\n",
+		"underscore":          hdr + "recall = 1_0.0\nprecision = 1.0\n",
+		"exponent":            hdr + "recall = 1e0\nprecision = 1.0\n",
+		"plus sign":           hdr + "recall = +1.0\nprecision = 1.0\n",
+		"no leading digit":    hdr + "recall = .5\nprecision = 1.0\n",
+		"trailing dot":        hdr + "recall = 1.\nprecision = 1.0\n",
+		"inline value":        hdr + "recall = { x = 1 }\nprecision = 1.0\n",
 		"wrong table depth":   "[binaries.a]\nrecall = 1.0\nprecision = 1.0\n",
 		"wrong root":          "[gates.a.b]\nrecall = 1.0\nprecision = 1.0\n",
 		"unterminated header": "[binaries.a.b\nrecall = 1.0\nprecision = 1.0\n",
 		"unterminated quote":  "[binaries.\"a.b]\nrecall = 1.0\nprecision = 1.0\n",
+		"single-quoted key":   "[binaries.'a'.b]\nrecall = 1.0\nprecision = 1.0\n",
+		"empty quoted key":    "[binaries.\"\".b]\nrecall = 1.0\nprecision = 1.0\n",
+		"bad bare key":        "[binaries.a b.c]\nrecall = 1.0\nprecision = 1.0\n",
 		"duplicate table":     ok + ok,
 		"empty key":           "[binaries..b]\nrecall = 1.0\nprecision = 1.0\n",
+		"empty file":          "",
+		"comments only":       "# Minimum precision/recall\n\n# nothing else\n",
 	} {
-		if _, err := parseThresholds([]byte(in)); err == nil {
+		_, err := parseThresholds([]byte(in))
+		if err == nil {
 			t.Errorf("%s: accepted", name)
+		} else if !strings.HasPrefix(err.Error(), "line ") {
+			t.Errorf("%s: error without a line number: %v", name, err)
+		}
+	}
+	// errors name the right line
+	for in, want := range map[string]string{
+		"# c\n" + hdr + "recall = 1.0\n":      "line 2: [binaries.a.b] needs recall and precision",
+		hdr + "recall = 1.0\nprecision = 7\n": "line 3: precision must be a plain decimal from 0 to 1",
+		"\n\n[binaries.'a'.b]\n":              "line 3: invalid bare key",
+		"":                                    "no gates in the file (empty or comments only)",
+	} {
+		if _, err := parseThresholds([]byte(in)); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%q: error %v, want %q", in, err, want)
+		}
+	}
+}
+
+func TestCheckNaNFails(t *testing.T) {
+	th := gates("b", map[string]Gate{"functions": {0.5, 0.5}})
+	v := th.Check([]*Comparison{cmp("b", cat("functions", math.NaN(), 1))}, "")
+	if len(v) != 1 || v[0].Metric != "recall" {
+		t.Errorf("NaN result passed: %v", v)
+	}
+	th = gates("b", map[string]Gate{"functions": {math.NaN(), 0}})
+	if v := th.Check([]*Comparison{cmp("b", cat("functions", 1, 1))}, ""); len(v) != 1 {
+		t.Errorf("NaN gate passed: %v", v)
+	}
+}
+
+func TestViolationMessagesNameTheFollowUps(t *testing.T) {
+	for _, c := range []struct {
+		v    Violation
+		want string
+	}{
+		{Violation{Binary: "x.exe", Metric: "result"}, "x.exe: gated binary has no result (the PE binaries are not in the corpus yet, #20)"},
+		{Violation{Binary: "x.dll", Metric: "result"}, "x.dll: gated binary has no result (the PE binaries are not in the corpus yet, #20)"},
+		{Violation{Binary: "demangle-oracle", Category: "MicrosoftDemangler", Metric: "result"},
+			"demangle-oracle / MicrosoftDemangler: gated category has no result (the Go port has no MSVC demangler yet, #17)"},
+		{Violation{Binary: "elf", Metric: "result"}, "elf: gated binary has no result"},
+	} {
+		if got := c.v.String(); got != c.want {
+			t.Errorf("got %q, want %q", got, c.want)
 		}
 	}
 }

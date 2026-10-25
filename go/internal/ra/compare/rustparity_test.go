@@ -81,10 +81,31 @@ func TestParityWithRustRegress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Known gaps only: the four PE binaries are not in the corpus (#20) and
+	// the Go port has no MSVC demangler (#17).
+	want := map[string]bool{
+		"cxx-msvc-i386.dll: gated binary has no result (the PE binaries are not in the corpus yet, #20)":                   true,
+		"cxx-msvc-x86_64.dll: gated binary has no result (the PE binaries are not in the corpus yet, #20)":                 true,
+		"freestanding-i386-pe-clang-O2.exe: gated binary has no result (the PE binaries are not in the corpus yet, #20)":   true,
+		"freestanding-x86_64-pe-clang-O2.exe: gated binary has no result (the PE binaries are not in the corpus yet, #20)": true,
+		"demangle-oracle / MicrosoftDemangler: gated category has no result (the Go port has no MSVC demangler yet, #17)":  true,
+	}
+	got := map[string]bool{}
 	for _, v := range out.Violations {
-		// Known: the four PE binaries are not in the corpus (#20) and the Go
-		// port has no MSVC demangler (#17).
-		t.Logf("violation: %v", v)
+		got[v.String()] = true
+	}
+	for v := range got {
+		if !want[v] {
+			t.Errorf("unexpected violation: %s", v)
+		}
+	}
+	for v := range want {
+		if !got[v] {
+			t.Errorf("expected known violation is gone: %s", v)
+		}
+	}
+	if len(out.MissingExpected) != 0 || out.OracleMissing {
+		t.Errorf("missing exports %v, oracle missing %t", out.MissingExpected, out.OracleMissing)
 	}
 	t.Logf("regress over the Rust reports: %d results, %d violations, %d missing exports", len(out.Results), len(out.Violations), len(out.MissingExpected))
 }

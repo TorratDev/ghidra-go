@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,9 +36,17 @@ func (v Violation) String() string {
 	case v.Metric != "result":
 		return fmt.Sprintf("%s / %s: %s %.4f < required %.4f", v.Binary, v.Category, v.Metric, v.Actual, v.Required)
 	case v.Category == "":
-		return fmt.Sprintf("%s: gated binary has no result", v.Binary)
+		msg := fmt.Sprintf("%s: gated binary has no result", v.Binary)
+		if strings.HasSuffix(v.Binary, ".exe") || strings.HasSuffix(v.Binary, ".dll") {
+			msg += " (the PE binaries are not in the corpus yet, #20)"
+		}
+		return msg
 	}
-	return fmt.Sprintf("%s / %s: gated category has no result", v.Binary, v.Category)
+	msg := fmt.Sprintf("%s / %s: gated category has no result", v.Binary, v.Category)
+	if v.Category == "MicrosoftDemangler" {
+		msg += " (the Go port has no MSVC demangler yet, #17)"
+	}
+	return msg
 }
 
 // floor3 floors to 3 decimals so tiny float noise never trips a gate. It is a
@@ -65,21 +74,28 @@ func LoadThresholds(path string) (*Thresholds, error) {
 	return t, nil
 }
 
+// plainFraction is a decimal from 0 to 1 as the committed file writes them:
+// no sign, exponent, underscore, hex, nan or inf.
+var plainFraction = regexp.MustCompile(`^[01](\.[0-9]+)?$`)
+
 // parseThresholds reads the only layout the file has: `#` comments, blank
 // lines, [binaries.<name>.<category>] tables (a name with characters outside
-// A-Za-z0-9_- is a quoted key) and `recall = <float>` / `precision = <float>`
-// lines. Anything else is an error, so a typo cannot silently drop a gate.
+// A-Za-z0-9_- is a double-quoted key) and `recall = <v>` / `precision = <v>`
+// lines with v a plain decimal from 0 to 1. Anything else is an error that
+// names its line, so a typo cannot silently drop a gate. A file without gates
+// is an error too: checking against nothing would pass everything.
 func parseThresholds(b []byte) (*Thresholds, error) {
 	t := &Thresholds{Binaries: map[string]map[string]Gate{}}
 	var cur *Gate
 	var bin, cat string
+	var headerLine int
 	seen := map[string]bool{}
 	flush := func() error {
 		if cur == nil {
 			return nil
 		}
 		if !seen["recall"] || !seen["precision"] {
-			return fmt.Errorf("[binaries.%s.%s] needs recall and precision", bin, cat)
+			return fmt.Errorf("line %d: [binaries.%s.%s] needs recall and precision", headerLine, bin, cat)
 		}
 		if t.Binaries[bin] == nil {
 			t.Binaries[bin] = map[string]Gate{}
@@ -88,7 +104,9 @@ func parseThresholds(b []byte) (*Thresholds, error) {
 		return nil
 	}
 	sc := bufio.NewScanner(bytes.NewReader(b))
-	for n := 1; sc.Scan(); n++ {
+	n := 0
+	for sc.Scan() {
+		n++
 		line := strings.TrimSpace(sc.Text())
 		switch {
 		case line == "" || strings.HasPrefix(line, "#"):
@@ -97,19 +115,25 @@ func parseThresholds(b []byte) (*Thresholds, error) {
 				return nil, err
 			}
 			parts, err := tableName(line)
-			if err != nil || len(parts) != 3 || parts[0] != "binaries" {
+			if err != nil {
+				return nil, fmt.Errorf("line %d: %v in %q", n, err, line)
+			}
+			if len(parts) != 3 || parts[0] != "binaries" {
 				return nil, fmt.Errorf("line %d: want [binaries.<name>.<category>], got %q", n, line)
 			}
 			if _, dup := t.Binaries[parts[1]][parts[2]]; dup {
 				return nil, fmt.Errorf("line %d: duplicate table %q", n, line)
 			}
-			bin, cat, cur, seen = parts[1], parts[2], &Gate{}, map[string]bool{}
+			bin, cat, cur, seen, headerLine = parts[1], parts[2], &Gate{}, map[string]bool{}, n
 		default:
 			key, val, ok := strings.Cut(line, "=")
 			key, val = strings.TrimSpace(key), strings.TrimSpace(val)
-			f, err := strconv.ParseFloat(val, 64)
-			if !ok || cur == nil || err != nil || seen[key] || (key != "recall" && key != "precision") {
+			if !ok || cur == nil || seen[key] || (key != "recall" && key != "precision") {
 				return nil, fmt.Errorf("line %d: unexpected %q", n, line)
+			}
+			f, err := strconv.ParseFloat(val, 64)
+			if !plainFraction.MatchString(val) || err != nil || f > 1 {
+				return nil, fmt.Errorf("line %d: %s must be a plain decimal from 0 to 1, got %q", n, key, val)
 			}
 			seen[key] = true
 			if key == "recall" {
@@ -120,10 +144,13 @@ func parseThresholds(b []byte) (*Thresholds, error) {
 		}
 	}
 	if err := sc.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("line %d: %w", n+1, err)
 	}
 	if err := flush(); err != nil {
 		return nil, err
+	}
+	if len(t.Binaries) == 0 {
+		return nil, fmt.Errorf("line %d: no gates in the file (empty or comments only); an empty set of gates would pass everything", max(n, 1))
 	}
 	return t, nil
 }
@@ -150,8 +177,8 @@ func tableName(line string) ([]string, error) {
 				return nil, errors.New("unterminated quoted key")
 			}
 			var err error
-			if part, err = strconv.Unquote(inner[:end+1]); err != nil {
-				return nil, err
+			if part, err = strconv.Unquote(inner[:end+1]); err != nil || part == "" {
+				return nil, fmt.Errorf("invalid quoted key %s", inner[:end+1])
 			}
 			inner = inner[end+1:]
 		} else {
@@ -160,8 +187,8 @@ func tableName(line string) ([]string, error) {
 				end = len(inner)
 			}
 			part, inner = inner[:end], inner[end:]
-			if part == "" {
-				return nil, errors.New("empty key")
+			if part == "" || tomlKey(part) != part {
+				return nil, fmt.Errorf("invalid bare key %q", part)
 			}
 		}
 		parts = append(parts, part)
@@ -241,7 +268,7 @@ func (t *Thresholds) Check(results []*Comparison, filter string) []Violation {
 				name             string
 				actual, required float64
 			}{{"recall", res.Recall, g.Recall}, {"precision", res.Precision, g.Precision}} {
-				if floor3(m.actual) < m.required {
+				if !(floor3(m.actual) >= m.required) { // also true for NaN on either side
 					out = append(out, Violation{bin, cat, m.name, m.actual, m.required})
 				}
 			}

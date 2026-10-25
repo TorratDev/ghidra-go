@@ -57,9 +57,7 @@ func runCompare(args []string) error {
 	if err != nil {
 		return err
 	}
-	base := filepath.Base(fs.Arg(0))
-	name := strings.TrimSuffix(strings.TrimSuffix(base, ".gz"), ".json")
-	c := compare.Compare(name, g, r)
+	c := compare.Compare(comparisonName(fs.Arg(0)), g, r)
 	if *asJSON {
 		b, err := json.MarshalIndent(c, "", "  ")
 		if err != nil {
@@ -70,6 +68,13 @@ func runCompare(args []string) error {
 	}
 	fmt.Print(compare.Markdown([]*compare.Comparison{c}, nil))
 	return nil
+}
+
+// comparisonName is Rust's Path::file_stem: only the last extension goes, so
+// x.json.gz is named "x.json" and x.json is "x".
+func comparisonName(path string) string {
+	base := filepath.Base(path)
+	return strings.TrimSuffix(base, filepath.Ext(base))
 }
 
 func runRegress(args []string) error {
