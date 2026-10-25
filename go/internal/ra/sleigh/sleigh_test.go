@@ -382,7 +382,7 @@ func TestParseRequestRejects(t *testing.T) {
 	}
 }
 
-const goodLanguage = `{"id":"x86:LE:64:default","big_endian":false,"address_size":8,"initial_context":0,` +
+const goodLanguage = `{"id":"x86:LE:64:default","big_endian":false,"address_size":8,"initial_context":"0x0",` +
 	`"pc":{"space":"register","offset":128,"size":8},"sp":{"space":"register","offset":32,"size":8},` +
 	`"int_args":[{"space":"register","offset":56,"size":8},{"space":"register","offset":48,"size":8}]}`
 
@@ -403,6 +403,19 @@ func TestParseLanguage(t *testing.T) {
 	}
 }
 
+func TestLanguageInitialContextIsHex(t *testing.T) {
+	l, err := ParseLanguage([]byte(strings.Replace(goodLanguage, `"initial_context":"0x0"`, `"initial_context":"0xffffffffffffffff"`, 1)))
+	if err != nil || l.InitialContext != 1<<64-1 {
+		t.Fatalf("%v %+v", err, l)
+	}
+	for _, c := range []string{`18446744073709551615`, `"-1"`, `null`, `true`, `""`, `"0x10000000000000000"`} {
+		in := strings.Replace(goodLanguage, `"initial_context":"0x0"`, `"initial_context":`+c, 1)
+		if _, err := ParseLanguage([]byte(in)); err == nil {
+			t.Errorf("initial_context %s accepted", c)
+		}
+	}
+}
+
 func TestParseLanguageRejects(t *testing.T) {
 	for _, f := range []string{"id", "big_endian", "address_size", "initial_context", "pc", "sp", "int_args"} {
 		var m map[string]json.RawMessage
@@ -415,19 +428,22 @@ func TestParseLanguageRejects(t *testing.T) {
 	}
 	rep := func(old, new string) string { return strings.Replace(goodLanguage, old, new, 1) }
 	for name, c := range map[string]struct{ in, want string }{
-		"unknown field":        {rep(`"id"`, `"name":"x","id"`), `unknown field "name"`},
-		"empty id":             {rep(`"x86:LE:64:default"`, `""`), `"id" is empty`},
-		"address size 3":       {rep(`"address_size":8`, `"address_size":3`), `"address_size" must be 1, 2, 4 or 8, got 3`},
-		"address size 0":       {rep(`"address_size":8`, `"address_size":0`), `"address_size"`},
-		"pc without offset":    {rep(`"pc":{"space":"register","offset":128,"size":8}`, `"pc":{"space":"register","size":8}`), `"pc": missing required field "offset"`},
-		"sp without space":     {rep(`"sp":{"space":"register",`, `"sp":{`), `"sp": missing required field "space"`},
-		"sp zero size":         {rep(`"sp":{"space":"register","offset":32,"size":8}`, `"sp":{"space":"register","offset":32,"size":0}`), `"sp": space must be non-empty and size positive`},
-		"pc empty space":       {rep(`"pc":{"space":"register"`, `"pc":{"space":""`), `"pc"`},
-		"arg unknown field":    {rep(`"offset":56,"size":8}`, `"offset":56,"size":8,"name":"RDI"}`), `unknown field "name"`},
-		"arg missing size":     {rep(`{"space":"register","offset":48,"size":8}`, `{"space":"register","offset":48}`), `"int_args"[1]: missing required field "size"`},
-		"int_args null":        {rep(`"int_args":[`, `"int_args":null,"x":[`), `x`},
-		"initial_context text": {rep(`"initial_context":0`, `"initial_context":"0"`), `initial_context`},
-		"trailing":             {goodLanguage + `{}`, `trailing data`},
+		"unknown field":          {rep(`"id"`, `"name":"x","id"`), `unknown field "name"`},
+		"empty id":               {rep(`"x86:LE:64:default"`, `""`), `"id" is empty`},
+		"address size 3":         {rep(`"address_size":8`, `"address_size":3`), `"address_size" must be 1, 2, 4 or 8, got 3`},
+		"address size 0":         {rep(`"address_size":8`, `"address_size":0`), `"address_size"`},
+		"pc without offset":      {rep(`"pc":{"space":"register","offset":128,"size":8}`, `"pc":{"space":"register","size":8}`), `"pc": missing required field "offset"`},
+		"sp without space":       {rep(`"sp":{"space":"register",`, `"sp":{`), `"sp": missing required field "space"`},
+		"sp zero size":           {rep(`"sp":{"space":"register","offset":32,"size":8}`, `"sp":{"space":"register","offset":32,"size":0}`), `"sp": space must be non-empty and size positive`},
+		"pc empty space":         {rep(`"pc":{"space":"register"`, `"pc":{"space":""`), `"pc"`},
+		"arg unknown field":      {rep(`"offset":56,"size":8}`, `"offset":56,"size":8,"name":"RDI"}`), `unknown field "name"`},
+		"arg missing size":       {rep(`{"space":"register","offset":48,"size":8}`, `{"space":"register","offset":48}`), `"int_args"[1]: missing required field "size"`},
+		"int_args null":          {rep(`"int_args":[`, `"int_args":null,"x":[`), `x`},
+		"initial_context number": {rep(`"initial_context":"0x0"`, `"initial_context":0`), `context must be a hex string`},
+		"initial_context -1":     {rep(`"initial_context":"0x0"`, `"initial_context":-1`), `context must be a hex string`},
+		"initial_context text":   {rep(`"initial_context":"0x0"`, `"initial_context":"zz"`), `bad hex address`},
+		"initial_context 0x":     {rep(`"initial_context":"0x0"`, `"initial_context":"0x"`), `bad hex address`},
+		"trailing":               {goodLanguage + `{}`, `trailing data`},
 	} {
 		if _, err := ParseLanguage([]byte(c.in)); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: error %v, want it to contain %q", name, err, c.want)

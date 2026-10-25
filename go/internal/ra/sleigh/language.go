@@ -19,8 +19,8 @@ type Language struct {
 	// AddressSize is the pointer size in bytes.
 	AddressSize uint32 `json:"address_size"`
 	// InitialContext is the context register value at an address with no
-	// recorded context.
-	InitialContext uint64  `json:"initial_context"`
+	// recorded context; a "0x..." hex string on the wire, like Insn.Context.
+	InitialContext Context `json:"initial_context"`
 	PC             Varnode `json:"pc"`
 	SP             Varnode `json:"sp"`
 	// IntArgs are the integer parameter registers of the default calling
@@ -55,7 +55,7 @@ type languageWire struct {
 	ID             *string        `json:"id"`
 	BigEndian      *bool          `json:"big_endian"`
 	AddressSize    *uint32        `json:"address_size"`
-	InitialContext *uint64        `json:"initial_context"`
+	InitialContext *Context       `json:"initial_context"`
 	PC             *varnodeWire   `json:"pc"`
 	SP             *varnodeWire   `json:"sp"`
 	IntArgs        *[]varnodeWire `json:"int_args"`
