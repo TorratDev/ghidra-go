@@ -184,12 +184,12 @@ func TestLoadBias(t *testing.T) {
 // Every address tag of the table, with the tag numbers of Ghidra's
 // ElfDynamicType (Features/Base ghidra.app.util.bin.format.elf).
 var dtTags = []struct {
-	tag  uint64
+	tag  uint32
 	name string
 }{
 	{3, "PLTGOT"}, {4, "HASH"}, {5, "STRTAB"}, {6, "SYMTAB"}, {7, "RELA"}, {12, "INIT"}, {13, "FINI"},
 	{17, "REL"}, {23, "JMPREL"}, {25, "INIT_ARRAY"}, {26, "FINI_ARRAY"}, {32, "PREINIT_ARRAY"},
-	{36, "RELR"}, {0x6ffffef5, "GNU_HASH"}, {0x6ffffff0, "VERSYM"}, {0x6ffffffc, "VERDEF"}, {0x6ffffffe, "VERNEED"},
+	{36, "RELR"}, {0x6ffffef4, "GNU_XHASH"}, {0x6ffffef5, "GNU_HASH"}, {0x6ffffff0, "VERSYM"}, {0x6ffffffc, "VERDEF"}, {0x6ffffffe, "VERNEED"},
 }
 
 func TestDTAddressNames(t *testing.T) {
@@ -199,7 +199,7 @@ func TestDTAddressNames(t *testing.T) {
 		}
 	}
 	// size, string and flag tags are not addresses
-	for _, tag := range []uint64{1, 2, 8, 9, 10, 11, 14, 15, 16, 18, 24, 27, 28, 29, 30, 31, 0x6ffffffb, 0x6ffffff9, 0x6ffffffd, 0x100000004} {
+	for _, tag := range []uint32{1, 2, 8, 9, 10, 11, 14, 15, 16, 18, 24, 27, 28, 29, 30, 31, 0x6ffffffb, 0x6ffffff9, 0x6ffffffd, 0x6000000f, 0x6ffffef8, 0x6ffffeff} {
 		if got, ok := dtAddressName(tag); ok {
 			t.Errorf("tag %#x named %q", tag, got)
 		}
@@ -211,7 +211,7 @@ func TestDynamicMarkup(t *testing.T) {
 	want := map[string]uint64{}
 	for i, c := range dtTags {
 		addr := 0x402000 + uint64(i)*0x10
-		dyn = append(dyn, le64(c.tag, addr)...)
+		dyn = append(dyn, le64(uint64(c.tag), addr)...)
 		want["__DT_"+c.name] = addr
 	}
 	dyn = append(dyn, le64(1, 0x99)...)      // DT_NEEDED: not an address
@@ -330,5 +330,26 @@ func TestSeedsAreExecutableOnly(t *testing.T) {
 	}
 	if !slices.Equal(p.Symbols, nil) && len(p.Symbols) != 0 {
 		t.Errorf("symbols %v", p.Symbols)
+	}
+}
+
+// Ghidra reads d_tag as an int: a 64-bit tag keeps only its low 32 bits, both
+// for the name lookup and for the DT_NULL that ends the table.
+func TestDynamicTagTruncatedTo32Bits(t *testing.T) {
+	dyn := le64(0x100000004, 0x402000)         // low bits 4: DT_HASH
+	dyn = append(dyn, le64(0x100000000, 0)...) // low bits 0: DT_NULL
+	dyn = append(dyn, le64(5, 0x402010)...)    // after the end: ignored
+	img := mkELF(elf.ET_EXEC, 0x401000, []tsec{
+		{name: ".text", typ: elf.SHT_PROGBITS, flags: alloc | exec, addr: 0x401000, data: []byte{0xc3}},
+		{name: ".data", typ: elf.SHT_PROGBITS, flags: alloc | wr, addr: 0x402000, data: make([]byte, 0x40)},
+		{name: ".dynamic", typ: elf.SHT_DYNAMIC, flags: alloc | wr, addr: 0x403000, data: dyn},
+	}, []tseg{{typ: elf.PT_DYNAMIC, flags: elf.PF_R, vaddr: 0x403000, memsz: uint64(len(dyn)), sec: 2}})
+	p := load(t, img, "")
+	var names []string
+	for _, s := range p.Symbols {
+		names = append(names, s.Name)
+	}
+	if !slices.Equal(names, []string{"__DT_HASH"}) {
+		t.Errorf("labels %v", names)
 	}
 }

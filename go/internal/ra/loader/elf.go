@@ -620,7 +620,9 @@ func dynamicInfo(f *elf.File) (tags []dtTag, relro [][2]uint64) {
 			continue
 		}
 		for off := 0; off+2*word <= len(d); off += 2 * word {
-			tag := rd(d[off:])
+			// Ghidra reads d_tag as an int, so the tag is truncated to 32 bits
+			// (ElfDynamic.java, ElfDynamicTable.java).
+			tag := uint32(rd(d[off:]))
 			if tag == 0 {
 				break
 			}
@@ -633,12 +635,12 @@ func dynamicInfo(f *elf.File) (tags []dtTag, relro [][2]uint64) {
 }
 
 // dtAddressName names the dynamic tags whose value is an address (Ghidra
-// ElfDynamicType with ElfDynamicValueType.ADDRESS). Java also marks the
-// Android relocation tags, DT_GNU_CONFLICT, DT_MOVETAB and DT_SYMINFO; the
-// Rust loader, and so this port, does not.
-// Unlike the Rust loader, which truncated the tag to 32 bits first, the whole
-// tag value is compared.
-func dtAddressName(tag uint64) (string, bool) {
+// ElfDynamicType with ElfDynamicValueType.ADDRESS). Java also marks
+// DT_ANDROID_REL (0x6000000f), DT_ANDROID_RELA (0x60000011), DT_ANDROID_RELR
+// (0x6fffe000), DT_GNU_CONFLICT (0x6ffffef8), DT_MOVETAB (0x6ffffefe) and
+// DT_SYMINFO (0x6ffffeff); the Rust loader does not label them and neither
+// does this port. DT_GNU_XHASH (0x6ffffef4) is labelled here, unlike Rust.
+func dtAddressName(tag uint32) (string, bool) {
 	switch tag {
 	case 3:
 		return "PLTGOT", true
@@ -666,6 +668,8 @@ func dtAddressName(tag uint64) (string, bool) {
 		return "PREINIT_ARRAY", true
 	case 36:
 		return "RELR", true
+	case 0x6ffffef4:
+		return "GNU_XHASH", true
 	case 0x6ffffef5:
 		return "GNU_HASH", true
 	case 0x6ffffff0:
