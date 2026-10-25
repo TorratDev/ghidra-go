@@ -73,6 +73,9 @@ keep one bridge process for many batches.
   unknown) is answered with one error line and the bridge exits with status 2.
 - Anything the Ghidra libraries print goes to stderr; stdout carries only
   response lines.
+- Headless initialization writes a log to
+  `~/.config/ghidra/ghidra_12.1.4_PUBLIC/application.log` (under the user's
+  home, outside the repository and the scratch directory).
 - Each entry is decoded in a transaction on an in-memory program that is rolled
   back, with the request's context passed as the initial context.
 
