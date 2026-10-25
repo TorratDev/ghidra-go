@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -179,7 +180,7 @@ func TestParseResponseRejects(t *testing.T) {
 				parts = append(parts, `"`+k+`":`+v)
 			}
 		}
-		for _, k := range []string{"extra", "indirect_via"} { // fields that are not part of the contract
+		for _, k := range []string{"extra", "indirect_via", "data_refs"} { // an unknown field and optional ones
 			if v, ok := m[k]; ok {
 				parts = append(parts, `"`+k+`":`+v)
 			}
@@ -204,7 +205,10 @@ func TestParseResponseRejects(t *testing.T) {
 		want string
 	}{
 		"unknown field":   {func(m map[string]string) { m["extra"] = "1" }, `unknown field "extra"`},
-		"dropped field":   {func(m map[string]string) { m["indirect_via"] = "null" }, `unknown field "indirect_via"`},
+		"bad via":         {func(m map[string]string) { m["indirect_via"] = `"nope"` }, `bad hex address`},
+		"bad access":      {func(m map[string]string) { m["data_refs"] = `[{"addr":"0x10","access":"peek"}]` }, `unknown access "peek"`},
+		"ref no access":   {func(m map[string]string) { m["data_refs"] = `[{"addr":"0x10"}]` }, `data_refs[0]`},
+		"ref unknown key": {func(m map[string]string) { m["data_refs"] = `[{"addr":"0x10","access":"read","x":1}]` }, `unknown field "x"`},
 		"unknown flow":    {func(m map[string]string) { m["flow"] = `"COMPUTED_CALL"` }, `unknown FlowType name "COMPUTED_CALL"`},
 		"empty flow":      {func(m map[string]string) { m["flow"] = `""` }, `unknown FlowType name ""`},
 		"zero length":     {func(m map[string]string) { m["len"] = `0` }, `"len" must be positive`},
@@ -448,5 +452,27 @@ func TestParseLanguageRejects(t *testing.T) {
 		if _, err := ParseLanguage([]byte(c.in)); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: error %v, want it to contain %q", name, err, c.want)
 		}
+	}
+}
+
+// The optional facts may be left out and null/empty ones are accepted; a
+// present one round-trips through MarshalJSON.
+func TestOptionalFacts(t *testing.T) {
+	d, err := ParseResponse([]byte(callLine))
+	if err != nil || d.IndirectVia != nil || d.DataRefs != nil || d.IndexedLoad {
+		t.Fatalf("%+v %v", d, err)
+	}
+	via := core.Addr(0x1016)
+	d.IndirectVia = &via
+	d.DataRefs = []DataRef{{0x1016, AccessRead}, {0x1017, AccessAddress}}
+	d.Addends = []core.Addr{0x2000}
+	d.IndexedLoad = true
+	b, err := json.Marshal(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := ParseResponse(b)
+	if err != nil || !reflect.DeepEqual(back, d) {
+		t.Fatalf("round trip: %+v %v\n%s", back, err, b)
 	}
 }

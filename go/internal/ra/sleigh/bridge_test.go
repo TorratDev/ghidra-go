@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -315,3 +316,51 @@ func TestBridgeAgainstGhidraExport(t *testing.T) {
 		t.Errorf("the bridge disagrees with the Ghidra export")
 	}
 }
+
+// The p-code facts of one instruction: the Rust ra-sleigh x86_64 tests
+// (indirect_via, data_refs) and the two jump-table idioms (addends,
+// indexed_load).
+func TestBridgeFacts(t *testing.T) {
+	ctx := languageInfo(t, "x86:LE:64:default", "gcc").InitialContext
+	br := startBridge(t)
+	cases := []struct {
+		name, bytes string
+		via         *core.Addr
+		refs        []DataRef
+		addends     []core.Addr
+		indexed     bool
+	}{
+		{"jmp [rip+0x10]", "ff2510000000", addr(0x1016), []DataRef{{0x1016, AccessRead}}, nil, false},
+		{"call [rip+0x10]", "ff1510000000", addr(0x1016), []DataRef{{0x1016, AccessRead}}, nil, false},
+		{"mov rax,[rip+0x10]", "488b0510000000", nil, []DataRef{{0x1017, AccessRead}}, nil, false},
+		{"mov [rip+0xf],rax", "4889050f000000", nil, []DataRef{{0x1016, AccessWrite}}, nil, false},
+		{"lea rax,[rip+0x10]", "488d0510000000", nil, []DataRef{{0x1017, AccessAddress}}, nil, false},
+		{"jmp [rax*8+0x2000] (absolute table)", "ff24c500200000", nil, nil, []core.Addr{0x2000}, true},
+		{"lea rdx,[rip+0x10] (PIC base)", "488d1510000000", nil, []DataRef{{0x1017, AccessAddress}}, nil, false},
+		{"movsxd rax,[rdx+rax*4] (PIC load)", "486304 82", nil, nil, nil, true},
+		{"nop", "90", nil, nil, nil, false},
+	}
+	var batch []Insn
+	for _, c := range cases {
+		b, err := hex.DecodeString(strings.ReplaceAll(c.bytes, " ", ""))
+		if err != nil {
+			t.Fatal(err)
+		}
+		batch = append(batch, Insn{0x1000, b, ctx})
+	}
+	for i, r := range br.run("x86:LE:64:default", batch) {
+		c := cases[i]
+		if r.Err != nil {
+			t.Errorf("%s: %v", c.name, r.Err)
+			continue
+		}
+		d := r.Decoded
+		if !reflect.DeepEqual(d.IndirectVia, c.via) || !slices.Equal(d.DataRefs, c.refs) ||
+			!slices.Equal(d.Addends, c.addends) || d.IndexedLoad != c.indexed {
+			t.Errorf("%s: via %v refs %v addends %v indexed %v, want %v %v %v %v", c.name,
+				d.IndirectVia, d.DataRefs, d.Addends, d.IndexedLoad, c.via, c.refs, c.addends, c.indexed)
+		}
+	}
+}
+
+func addr(a core.Addr) *core.Addr { return &a }

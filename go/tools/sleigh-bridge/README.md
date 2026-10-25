@@ -59,6 +59,17 @@ instruction of a flow: a context of `0x0` decodes x86-64 bytes in 16-bit mode.
 Start-up takes several seconds (Ghidra's class search and language load);
 keep one bridge process for many batches.
 
+## P-code facts
+
+Besides Ghidra's flow facts each response carries `indirect_via`, `data_refs`,
+`addends` and `indexed_load`, derived from the instruction's own p-code (a port
+of the Rust `ra-sleigh` extraction). They are tracked within one instruction:
+no register state carries over from the previous one, so a use that depends on
+an earlier `ADRP`/`LEA` (AArch64 `ADRP`+`LDR`, a PIC table base in a register)
+is not resolved here. Ghidra folds a memory operand at a constant address into
+a ram varnode; reading one counts as a `read` data ref and writing one as a
+`write`.
+
 ## Rules
 
 - Computed flows are normalized to the base FlowType name plus

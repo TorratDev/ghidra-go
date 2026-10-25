@@ -27,6 +27,10 @@ import (
 // or {"error":"message"} when it cannot decode that entry. The bridge always
 // answers every entry of a batch, so an error never leaves the batch short.
 // Both sides reject unknown, missing, duplicate and differently-cased fields.
+// Four more facts are optional on the wire (the bridge always writes them,
+// a reader may leave them out): indirect_via (hex address or null),
+// data_refs ([{"addr":"0x..","access":"read|write|address"}]), addends (hex
+// addresses) and indexed_load (bool); see Decoded.
 // Addresses and contexts are "0x..." hex strings.
 
 // Context is a SLEIGH context register value. On the wire it is a "0x..."
@@ -204,8 +208,13 @@ var (
 		s.keys["batch"] = &shape{elem: obj("addr", "bytes", "context")}
 		return s
 	}()
-	responseShape = obj("addr", "len", "mnemonic", "text", "flow", "has_fallthrough", "targets", "indirect", "context")
-	errorShape    = obj("error")
+	responseShape = func() *shape {
+		s := obj("addr", "len", "mnemonic", "text", "flow", "has_fallthrough", "targets", "indirect", "context",
+			"indirect_via", "data_refs", "addends", "indexed_load")
+		s.keys["data_refs"] = &shape{elem: obj("addr", "access")}
+		return s
+	}()
+	errorShape = obj("error")
 )
 
 // ParseRequest decodes and validates a request line.
@@ -252,9 +261,9 @@ func WriteRequest(w io.Writer, r Request) error {
 
 // Decoded is what the bridge reports for one instruction: Ghidra's facts, not
 // ra's analysis. Field names and JSON tags are the Rust ra-sleigh ones.
-// Rust's indirect_via, data_refs, addends and indexed_load are not produced
-// by the bridge (data references need analysis, which compare reports as
-// missing; the addend heuristics are dropped, see #10).
+// IndirectVia, DataRefs, Addends and IndexedLoad are the p-code-derived facts
+// of Rust's ra-sleigh, computed within the one instruction (no state carries
+// over from the previous one).
 type Decoded struct {
 	Addr     core.Addr `json:"addr"`
 	Len      uint32    `json:"len"`
@@ -268,6 +277,32 @@ type Decoded struct {
 	Indirect bool `json:"indirect"`
 	// Context is the context value the bridge decoded the instruction with.
 	Context Context `json:"context"`
+
+	// IndirectVia is the constant address an indirect jump or call loads its
+	// target from (JMP [0x1234]).
+	IndirectVia *core.Addr
+	// DataRefs are the constant addresses the instruction reads, writes or
+	// computes.
+	DataRefs []DataRef
+	// Addends are constants (>= 0x100) added to a run-time value: the table
+	// base of JMP [T+idx*S].
+	Addends []core.Addr
+	// IndexedLoad is a load from a run-time computed address.
+	IndexedLoad bool
+}
+
+// Access is how an instruction touches a constant address.
+type Access string
+
+const (
+	AccessRead    Access = "read"
+	AccessWrite   Access = "write"
+	AccessAddress Access = "address" // computed, not dereferenced here
+)
+
+type DataRef struct {
+	Addr   core.Addr `json:"addr"`
+	Access Access    `json:"access"`
 }
 
 type decodedWire struct {
@@ -280,6 +315,16 @@ type decodedWire struct {
 	Targets        *[]core.Addr `json:"targets"`
 	Indirect       *bool        `json:"indirect"`
 	Context        *Context     `json:"context"`
+
+	IndirectVia *core.Addr    `json:"indirect_via,omitempty"`
+	DataRefs    []dataRefWire `json:"data_refs,omitempty"`
+	Addends     []core.Addr   `json:"addends,omitempty"`
+	IndexedLoad bool          `json:"indexed_load,omitempty"`
+}
+
+type dataRefWire struct {
+	Addr   *core.Addr `json:"addr"`
+	Access *string    `json:"access"`
 }
 
 // BridgeError is an error object from the bridge.
@@ -328,10 +373,23 @@ func ParseResponse(line []byte) (*Decoded, error) {
 	if err != nil {
 		return nil, fmt.Errorf(`response: field "flow": %w`, err)
 	}
-	return &Decoded{
+	d := &Decoded{
 		Addr: *w.Addr, Len: *w.Len, Mnemonic: *w.Mnemonic, Text: *w.Text, Flow: flow,
 		HasFallthrough: *w.HasFallthrough, Targets: *w.Targets, Indirect: *w.Indirect, Context: *w.Context,
-	}, nil
+		IndirectVia: w.IndirectVia, Addends: w.Addends, IndexedLoad: w.IndexedLoad,
+	}
+	for i, r := range w.DataRefs {
+		if r.Addr == nil || r.Access == nil {
+			return nil, fmt.Errorf(`response: data_refs[%d]: missing required field "addr" or "access"`, i)
+		}
+		switch a := Access(*r.Access); a {
+		case AccessRead, AccessWrite, AccessAddress:
+			d.DataRefs = append(d.DataRefs, DataRef{*r.Addr, a})
+		default:
+			return nil, fmt.Errorf(`response: data_refs[%d]: unknown access %q`, i, *r.Access)
+		}
+	}
+	return d, nil
 }
 
 // MarshalJSON writes the wire form, with the FlowType name for flow.
@@ -344,7 +402,17 @@ func (d Decoded) MarshalJSON() ([]byte, error) {
 		targets = []core.Addr{}
 	}
 	name := d.Flow.GhidraName()
-	return json.Marshal(decodedWire{&d.Addr, &d.Len, &d.Mnemonic, &d.Text, &name, &d.HasFallthrough, &targets, &d.Indirect, &d.Context})
+	refs := make([]dataRefWire, len(d.DataRefs))
+	for i, r := range d.DataRefs {
+		a := string(r.Access)
+		refs[i] = dataRefWire{&d.DataRefs[i].Addr, &a}
+	}
+	addends := d.Addends
+	if addends == nil {
+		addends = []core.Addr{}
+	}
+	return json.Marshal(decodedWire{&d.Addr, &d.Len, &d.Mnemonic, &d.Text, &name, &d.HasFallthrough, &targets, &d.Indirect, &d.Context,
+		d.IndirectVia, refs, addends, d.IndexedLoad})
 }
 
 // Result is the answer for one batch entry: Decoded, or the error that

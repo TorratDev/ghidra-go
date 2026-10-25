@@ -5,8 +5,16 @@
 //
 //   request  (one line, stdin):  {"language":ID,"batch":[{"addr":"0x..","bytes":"hex","context":"0x.."}]}
 //   response (one line per batch entry, in order, stdout):
-//     {"addr","len","mnemonic","text","flow","has_fallthrough","targets","indirect","context"}
+//     {"addr","len","mnemonic","text","flow","has_fallthrough","targets","indirect","context",
+//      "indirect_via","data_refs","addends","indexed_load"}
 //     or {"error":"message"}
+//
+// The last four are p-code-derived facts (a port of Rust ra-sleigh's
+// analyze_pcode), tracked within the one instruction only: indirect_via is the
+// constant address a BRANCHIND/CALLIND target is loaded from (or null),
+// data_refs the constant addresses loaded, stored or materialized (access
+// read|write|address), addends the constants (>= 0x100) added to a run-time
+// value, indexed_load whether a LOAD reads a run-time computed address.
 //
 // The bridge never re-derives flows from p-code: "flow" is Ghidra's FlowType
 // name. The computed forms are normalized to the base name plus indirect=true
@@ -69,6 +77,8 @@ import ghidra.program.model.listing.Parameter;
 import ghidra.program.model.listing.ParameterImpl;
 import ghidra.program.model.listing.VariableStorage;
 import ghidra.program.model.mem.MemoryBlock;
+import ghidra.program.model.pcode.PcodeOp;
+import ghidra.program.model.pcode.Varnode;
 import ghidra.program.util.DefaultLanguageService;
 import ghidra.util.task.TaskMonitor;
 
@@ -530,12 +540,238 @@ public class SleighBridge {
 				}
 			}
 			sb.append("],\"indirect\":").append(indirect);
-			sb.append(",\"context\":").append(hex(used)).append('}');
+			sb.append(",\"context\":").append(hex(used));
+			Facts f = facts(ins, lang.getProgramCounter(), e.addr + ins.getLength());
+			sb.append(",\"indirect_via\":").append(f.via == null ? "null" : hex(f.via));
+			sb.append(",\"data_refs\":[");
+			for (int i = 0; i < f.refAddrs.size(); i++) {
+				sb.append(i > 0 ? "," : "").append("{\"addr\":").append(hex(f.refAddrs.get(i)));
+				sb.append(",\"access\":\"").append(f.refAccess.get(i)).append("\"}");
+			}
+			sb.append("],\"addends\":[");
+			for (int i = 0; i < f.addends.size(); i++) {
+				sb.append(i > 0 ? "," : "").append(hex(f.addends.get(i)));
+			}
+			sb.append("],\"indexed_load\":").append(f.indexedLoad).append('}');
 			return sb.toString();
 		}
 		finally {
 			program.endTransaction(tx, false);
 		}
+	}
+
+	// ------------------------------------------------------------------ p-code facts
+
+	static final class Facts {
+		Long via;
+		final List<Long> refAddrs = new ArrayList<>();
+		final List<String> refAccess = new ArrayList<>();
+		final List<Long> addends = new ArrayList<>();
+		boolean indexedLoad;
+
+		void ref(long addr, String access) {
+			int i = refAddrs.indexOf(addr);
+			if (i < 0) {
+				refAddrs.add(addr);
+				refAccess.add(access);
+			}
+			else if (refAccess.get(i).equals("address")) {
+				refAccess.set(i, access); // the most specific access wins
+			}
+		}
+	}
+
+	/** Constant values of varnodes within one instruction. */
+	static final class Consts {
+		final List<Varnode> keys = new ArrayList<>();
+		final List<Long> vals = new ArrayList<>();
+		final List<Varnode> loadedKeys = new ArrayList<>();
+		final List<Long> loadedFrom = new ArrayList<>();
+
+		static boolean overlaps(Varnode a, Varnode b) {
+			return a.getSpace() == b.getSpace() && a.getOffset() < b.getOffset() + b.getSize() &&
+				b.getOffset() < a.getOffset() + a.getSize();
+		}
+
+		Long get(Varnode v) {
+			if (v.isConstant()) {
+				return v.getOffset();
+			}
+			for (int i = keys.size() - 1; i >= 0; i--) {
+				if (keys.get(i).equals(v)) {
+					return vals.get(i);
+				}
+			}
+			return null;
+		}
+
+		Long loaded(Varnode v) {
+			for (int i = loadedKeys.size() - 1; i >= 0; i--) {
+				if (loadedKeys.get(i).equals(v)) {
+					return loadedFrom.get(i);
+				}
+			}
+			return null;
+		}
+
+		void set(Varnode out, Long val) {
+			for (int i = keys.size() - 1; i >= 0; i--) {
+				if (overlaps(keys.get(i), out)) {
+					keys.remove(i);
+					vals.remove(i);
+				}
+			}
+			for (int i = loadedKeys.size() - 1; i >= 0; i--) {
+				if (overlaps(loadedKeys.get(i), out)) {
+					loadedKeys.remove(i);
+					loadedFrom.remove(i);
+				}
+			}
+			if (val != null) {
+				keys.add(out);
+				vals.add(mask(val, out.getSize()));
+			}
+		}
+	}
+
+	static boolean isMemory(Varnode v) {
+		return !v.isConstant() && v.getAddress().getAddressSpace().isMemorySpace();
+	}
+
+	static long mask(long v, int size) {
+		return size >= 8 ? v : v & ((1L << (size * 8)) - 1);
+	}
+
+	static Long eval(PcodeOp op, Long a, Long b) {
+		if (a == null) {
+			return null;
+		}
+		switch (op.getOpcode()) {
+			case PcodeOp.COPY:
+			case PcodeOp.INT_ZEXT:
+				return a;
+			case PcodeOp.INT_SEXT: {
+				int bits = op.getInput(0).getSize() * 8;
+				return bits >= 64 ? a : (a << (64 - bits)) >> (64 - bits);
+			}
+			case PcodeOp.SUBPIECE:
+				return b == null || b * 8 >= 64 ? null : a >>> (b * 8);
+		}
+		if (b == null) {
+			return null;
+		}
+		switch (op.getOpcode()) {
+			case PcodeOp.INT_ADD:
+				return a + b;
+			case PcodeOp.INT_SUB:
+				return a - b;
+			case PcodeOp.INT_AND:
+				return a & b;
+			case PcodeOp.INT_OR:
+				return a | b;
+			case PcodeOp.INT_XOR:
+				return a ^ b;
+			case PcodeOp.INT_MULT:
+				return a * b;
+			case PcodeOp.INT_LEFT:
+				return b < 0 || b >= 64 ? 0L : a << b;
+			case PcodeOp.INT_RIGHT:
+				return b < 0 || b >= 64 ? 0L : a >>> b;
+		}
+		return null;
+	}
+
+	/** Port of Rust ra-sleigh analyze_pcode's fact extraction, within one instruction. */
+	static Facts facts(Instruction ins, Register pcReg, long instNext) {
+		Facts f = new Facts();
+		Consts c = new Consts();
+		Varnode pc = pcReg == null ? null : new Varnode(pcReg.getAddress(), pcReg.getMinimumByteSize());
+		for (PcodeOp op : ins.getPcode(false)) {
+			Varnode out = op.getOutput();
+			int n = op.getNumInputs();
+			// Ghidra folds a memory operand at a constant address into a ram
+			// varnode: reading one is a load, writing one a store. The first
+			// input of BRANCH, CBRANCH and CALL is a destination, not a read.
+			int op0 = op.getOpcode();
+			for (int i = (op0 == PcodeOp.BRANCH || op0 == PcodeOp.CBRANCH || op0 == PcodeOp.CALL) ? 1 : 0; i < n; i++) {
+				if (isMemory(op.getInput(i))) {
+					f.ref(op.getInput(i).getOffset(), "read");
+				}
+			}
+			if (out != null && isMemory(out)) {
+				f.ref(out.getOffset(), "write");
+			}
+			switch (op.getOpcode()) {
+				case PcodeOp.BRANCHIND:
+				case PcodeOp.CALLIND:
+					if (f.via == null) {
+						Varnode t = op.getInput(0);
+						f.via = isMemory(t) ? Long.valueOf(t.getOffset()) : c.loaded(t);
+					}
+					continue;
+				case PcodeOp.LOAD: {
+					Long addr = c.get(op.getInput(1));
+					c.set(out, null);
+					if (addr != null) {
+						f.ref(addr, "read");
+						c.loadedKeys.add(out);
+						c.loadedFrom.add(addr);
+					}
+					else {
+						f.indexedLoad = true;
+					}
+					continue;
+				}
+				case PcodeOp.STORE: {
+					Long addr = c.get(op.getInput(1));
+					if (addr != null) {
+						f.ref(addr, "write");
+					}
+					continue;
+				}
+			}
+			if (out == null) {
+				continue;
+			}
+			Varnode a = n > 0 ? op.getInput(0) : null;
+			Varnode b = n > 1 ? op.getInput(1) : null;
+			Long av = a == null ? null : c.get(a);
+			Long bv = b == null ? null : c.get(b);
+			if (op.getOpcode() == PcodeOp.INT_ADD) {
+				for (int k = 0; k < 2; k++) {
+					Long v = k == 0 ? av : bv;
+					Long other = k == 0 ? bv : av;
+					if (v != null && other == null && Long.compareUnsigned(v, 0x100) >= 0 &&
+						!f.addends.contains(v)) {
+						f.addends.add(v);
+					}
+				}
+			}
+			Long val = eval(op, av, bv);
+			if (a != null && (op0 == PcodeOp.COPY || op0 == PcodeOp.INT_ZEXT || op0 == PcodeOp.INT_SEXT)) {
+				// A copy of a memory operand, or of a loaded value, is still loaded from there.
+				Long from = isMemory(a) ? Long.valueOf(a.getOffset()) : c.loaded(a);
+				if (from != null) {
+					c.set(out, null);
+					c.loadedKeys.add(out);
+					c.loadedFrom.add(from);
+					continue;
+				}
+			}
+			// Constants materialized into architectural registers from an
+			// immediate operand may be addresses (LEA, MOV imm, ADD #lo12); plain
+			// copies of known registers and the return address are not.
+			boolean immediate = (a != null && a.isConstant()) || (b != null && b.isConstant()) ||
+				(a != null && a.isUnique() && av != null);
+			if (val != null && !out.isUnique() && !isMemory(out) && immediate) {
+				long v = mask(val, out.getSize());
+				if (!out.equals(pc) && v != instNext && !ins.getMnemonicString().startsWith("ADRP")) {
+					f.ref(v, "address");
+				}
+			}
+			c.set(out, val);
+		}
+		return f;
 	}
 
 	// ------------------------------------------------------------------ JSON output

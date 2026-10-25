@@ -29,10 +29,10 @@ func (c BridgeConfig) command(args ...string) *exec.Cmd {
 }
 
 // BridgeDecoder is a Decoder backed by the Java bridge. The bridge supplies
-// Ghidra's flow facts only, so IndirectVia, DataRefs, Addends and IndexedLoad
-// stay empty and it is not a StateDecoder: analyses that need p-code facts
-// (PLT thunks by import name, jump tables, data references, constant
-// propagation) do not run with it. That is the known gap of the contract.
+// Ghidra's flow facts and the per-instruction p-code facts (IndirectVia,
+// DataRefs, Addends, IndexedLoad). It is not a StateDecoder: register state
+// does not carry between instructions, so block-local constant propagation
+// does not run with it. That is the known gap of the contract.
 type BridgeDecoder struct {
 	cfg     BridgeConfig
 	lang    *sleigh.Language
@@ -124,5 +124,23 @@ func (b *BridgeDecoder) Decode(addr uint64, bytes []byte) (*Decoded, bool) {
 	for _, t := range s.Targets {
 		d.Targets = append(d.Targets, uint64(t))
 	}
+	if s.IndirectVia != nil {
+		v := uint64(*s.IndirectVia)
+		d.IndirectVia = &v
+	}
+	for _, r := range s.DataRefs {
+		acc := AccessAddress
+		switch r.Access {
+		case sleigh.AccessRead:
+			acc = AccessRead
+		case sleigh.AccessWrite:
+			acc = AccessWrite
+		}
+		d.DataRefs = append(d.DataRefs, DataRef{uint64(r.Addr), acc})
+	}
+	for _, a := range s.Addends {
+		d.Addends = append(d.Addends, uint64(a))
+	}
+	d.IndexedLoad = s.IndexedLoad
 	return d, true
 }
