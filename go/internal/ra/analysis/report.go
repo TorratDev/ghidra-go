@@ -285,12 +285,12 @@ func Report(prog *loader.Program, an *Analysis) *core.AnalysisReport {
 	return r
 }
 
-// buildBlocks is Ghidra's SimpleBlockModel. A block starts at an instruction
+// buildBlocks is Ghidra's BasicBlockModel (isBlockStart inherited from SimpleBlockModel). A block starts at an instruction
 // that has a symbol or any reference to it (isBlockStart asks
 // SymbolTable.hasSymbol, which is true for a symbol or any reference to the
 // address: flow or data, SymbolManager.hasSymbol), and after an instruction
-// that has no fallthrough or ends a block (jump, return, terminator); calls do
-// not end blocks. Fallthrough is the instruction's own has_fallthrough, not the
+// that has no fallthrough or ends a block (jump, return, terminator;
+// BasicBlockModel.hasEndOfBlockFlow); calls do not end blocks. Fallthrough is the instruction's own has_fallthrough, not the
 // flow cut after a call to a no-return function.
 func buildBlocks(r *core.AnalysisReport, an *Analysis, named map[uint64]bool, tail func(*Insn) bool) {
 	labels := map[uint64]bool{}
