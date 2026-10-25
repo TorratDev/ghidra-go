@@ -159,8 +159,18 @@ func minLoadVaddr(f *elf.File) (uint64, bool) {
 	return lo, found
 }
 
-// detectRust is RustConstants.RUST_SIGNATURES searched in .rodata.
+// detectRust is ElfRustSourceLanguage.existsIn: a "rustc version " string in
+// .comment, else RustConstants.RUST_SIGNATURES searched in .rodata.
 func detectRust(f *elf.File) bool {
+	if c := f.Section(".comment"); c != nil && c.Type != elf.SHT_NOBITS {
+		if d, err := c.Data(); err == nil {
+			for _, s := range bytes.Split(d, []byte{0}) {
+				if bytes.HasPrefix(s, []byte("rustc version ")) {
+					return true
+				}
+			}
+		}
+	}
 	s := f.Section(".rodata")
 	if s == nil || s.Type == elf.SHT_NOBITS {
 		return false

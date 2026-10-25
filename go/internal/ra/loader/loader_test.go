@@ -165,6 +165,27 @@ func TestTLSOverlapKeepsInitArray(t *testing.T) {
 	}
 }
 
+// A no_std binary has no RUST_BACKTRACE or /rustc/ in .rodata; only the
+// rustc version string in .comment marks it as Rust.
+func TestRustDetectedFromComment(t *testing.T) {
+	for _, c := range []struct {
+		comment string
+		want    bool
+	}{
+		{"GCC: (GNU) 13\x00rustc version 1.80.0 (abc 2024-07-21)\x00", true},
+		{"GCC: (GNU) 13\x00", false},
+		{"not rustc version 1.80.0\x00", false},
+	} {
+		img := mkELF(elf.ET_EXEC, 0x401000, []tsec{
+			{name: ".text", typ: elf.SHT_PROGBITS, flags: alloc | exec, addr: 0x401000, data: []byte{0xc3}},
+			{name: ".comment", typ: elf.SHT_PROGBITS, data: []byte(c.comment)},
+		}, nil)
+		if got := load(t, img, "").IsRust; got != c.want {
+			t.Errorf("comment %q: IsRust = %v, want %v", c.comment, got, c.want)
+		}
+	}
+}
+
 func TestLoadBias(t *testing.T) {
 	secs := []tsec{{name: ".text", typ: elf.SHT_PROGBITS, flags: alloc | exec, addr: 0x1000, data: []byte{0xc3}}}
 	segs := []tseg{{typ: elf.PT_LOAD, flags: elf.PF_R | elf.PF_X, vaddr: 0, memsz: 0x2000, sec: -1}}
