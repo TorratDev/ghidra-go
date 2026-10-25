@@ -161,3 +161,28 @@ func TestCommittedThresholdsRoundTrip(t *testing.T) {
 		t.Error("round trip changed the committed thresholds file")
 	}
 }
+
+func TestParseThresholdsRejectsMalformed(t *testing.T) {
+	ok := "[binaries.a.b]\nrecall = 1.0\nprecision = 0.5\n"
+	if th, err := parseThresholds([]byte("# c\n\n" + ok + "\n[binaries.\"x.y\".\"c\"]\nrecall = 0.1\nprecision = 0.2\n")); err != nil ||
+		th.Binaries["a"]["b"] != (Gate{1, 0.5}) || th.Binaries["x.y"]["c"] != (Gate{0.1, 0.2}) {
+		t.Fatalf("%v %+v", err, th)
+	}
+	for name, in := range map[string]string{
+		"key outside a table": "recall = 1.0\n",
+		"missing precision":   "[binaries.a.b]\nrecall = 1.0\n",
+		"unknown key":         "[binaries.a.b]\nrecall = 1.0\nprecision = 1.0\nrecal = 1.0\n",
+		"duplicate key":       "[binaries.a.b]\nrecall = 1.0\nrecall = 1.0\nprecision = 1.0\n",
+		"not a float":         "[binaries.a.b]\nrecall = high\nprecision = 1.0\n",
+		"wrong table depth":   "[binaries.a]\nrecall = 1.0\nprecision = 1.0\n",
+		"wrong root":          "[gates.a.b]\nrecall = 1.0\nprecision = 1.0\n",
+		"unterminated header": "[binaries.a.b\nrecall = 1.0\nprecision = 1.0\n",
+		"unterminated quote":  "[binaries.\"a.b]\nrecall = 1.0\nprecision = 1.0\n",
+		"duplicate table":     ok + ok,
+		"empty key":           "[binaries..b]\nrecall = 1.0\nprecision = 1.0\n",
+	} {
+		if _, err := parseThresholds([]byte(in)); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}

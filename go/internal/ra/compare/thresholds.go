@@ -1,6 +1,7 @@
 package compare
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -9,19 +10,17 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/BurntSushi/toml"
 )
 
 type Gate struct {
-	Recall    float64 `toml:"recall"`
-	Precision float64 `toml:"precision"`
+	Recall    float64
+	Precision float64
 }
 
 // Thresholds is thresholds.toml: [binaries."<name>".<category>] with recall
 // and precision minimums.
 type Thresholds struct {
-	Binaries map[string]map[string]Gate `toml:"binaries"`
+	Binaries map[string]map[string]Gate
 }
 
 // Violation is a failed gate. Metric is "recall", "precision", or "result"
@@ -59,14 +58,121 @@ func LoadThresholds(path string) (*Thresholds, error) {
 	if err != nil {
 		return nil, err
 	}
-	t := &Thresholds{}
-	if _, err := toml.NewDecoder(bytes.NewReader(b)).Decode(t); err != nil {
+	t, err := parseThresholds(b)
+	if err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
-	if t.Binaries == nil {
-		t.Binaries = map[string]map[string]Gate{}
+	return t, nil
+}
+
+// parseThresholds reads the only layout the file has: `#` comments, blank
+// lines, [binaries.<name>.<category>] tables (a name with characters outside
+// A-Za-z0-9_- is a quoted key) and `recall = <float>` / `precision = <float>`
+// lines. Anything else is an error, so a typo cannot silently drop a gate.
+func parseThresholds(b []byte) (*Thresholds, error) {
+	t := &Thresholds{Binaries: map[string]map[string]Gate{}}
+	var cur *Gate
+	var bin, cat string
+	seen := map[string]bool{}
+	flush := func() error {
+		if cur == nil {
+			return nil
+		}
+		if !seen["recall"] || !seen["precision"] {
+			return fmt.Errorf("[binaries.%s.%s] needs recall and precision", bin, cat)
+		}
+		if t.Binaries[bin] == nil {
+			t.Binaries[bin] = map[string]Gate{}
+		}
+		t.Binaries[bin][cat] = *cur
+		return nil
+	}
+	sc := bufio.NewScanner(bytes.NewReader(b))
+	for n := 1; sc.Scan(); n++ {
+		line := strings.TrimSpace(sc.Text())
+		switch {
+		case line == "" || strings.HasPrefix(line, "#"):
+		case strings.HasPrefix(line, "["):
+			if err := flush(); err != nil {
+				return nil, err
+			}
+			parts, err := tableName(line)
+			if err != nil || len(parts) != 3 || parts[0] != "binaries" {
+				return nil, fmt.Errorf("line %d: want [binaries.<name>.<category>], got %q", n, line)
+			}
+			if _, dup := t.Binaries[parts[1]][parts[2]]; dup {
+				return nil, fmt.Errorf("line %d: duplicate table %q", n, line)
+			}
+			bin, cat, cur, seen = parts[1], parts[2], &Gate{}, map[string]bool{}
+		default:
+			key, val, ok := strings.Cut(line, "=")
+			key, val = strings.TrimSpace(key), strings.TrimSpace(val)
+			f, err := strconv.ParseFloat(val, 64)
+			if !ok || cur == nil || err != nil || seen[key] || (key != "recall" && key != "precision") {
+				return nil, fmt.Errorf("line %d: unexpected %q", n, line)
+			}
+			seen[key] = true
+			if key == "recall" {
+				cur.Recall = f
+			} else {
+				cur.Precision = f
+			}
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return nil, err
+	}
+	if err := flush(); err != nil {
+		return nil, err
 	}
 	return t, nil
+}
+
+// tableName splits "[a."b.c".d]" into its dotted key parts, unquoting the
+// quoted ones.
+func tableName(line string) ([]string, error) {
+	inner, ok := strings.CutSuffix(strings.TrimPrefix(line, "["), "]")
+	if !ok {
+		return nil, errors.New("unterminated table header")
+	}
+	var parts []string
+	for inner != "" {
+		var part string
+		if inner[0] == '"' {
+			end := 1
+			for end < len(inner) && inner[end] != '"' {
+				if inner[end] == '\\' {
+					end++
+				}
+				end++
+			}
+			if end >= len(inner) {
+				return nil, errors.New("unterminated quoted key")
+			}
+			var err error
+			if part, err = strconv.Unquote(inner[:end+1]); err != nil {
+				return nil, err
+			}
+			inner = inner[end+1:]
+		} else {
+			end := strings.IndexByte(inner, '.')
+			if end < 0 {
+				end = len(inner)
+			}
+			part, inner = inner[:end], inner[end:]
+			if part == "" {
+				return nil, errors.New("empty key")
+			}
+		}
+		parts = append(parts, part)
+		if inner != "" {
+			if inner[0] != '.' || len(inner) == 1 {
+				return nil, errors.New("bad key separator")
+			}
+			inner = inner[1:]
+		}
+	}
+	return parts, nil
 }
 
 const thresholdsHeader = "# Minimum precision/recall per binary and category, versus Ghidra.\n" +
