@@ -367,3 +367,30 @@ func TestBridgeFacts(t *testing.T) {
 }
 
 func addr(a core.Addr) *core.Addr { return &a }
+
+// Mnemonics are upper case whatever the language writes: AARCH64 reports "b"
+// and "adrp", and the comparison with the Ghidra export is exact. x86 is
+// unchanged.
+func TestBridgeMnemonicCase(t *testing.T) {
+	a64 := languageInfo(t, "AARCH64:LE:64:v8A")
+	x86 := languageInfo(t, "x86:LE:64:default", "gcc")
+	br := startBridge(t)
+	insn := func(h string, c Context) []Insn {
+		b, _ := hex.DecodeString(h)
+		return []Insn{{0x1000, b, c}}
+	}
+	for _, c := range []struct {
+		lang, bytes, want string
+		ctx               Context
+	}{
+		{"AARCH64:LE:64:v8A", "04000014", "B", a64.InitialContext},    // b #0x10
+		{"AARCH64:LE:64:v8A", "000000b0", "ADRP", a64.InitialContext}, // adrp x0, #0x2000
+		{"x86:LE:64:default", "90", "NOP", x86.InitialContext},
+		{"x86:LE:64:default", "e805000000", "CALL", x86.InitialContext},
+	} {
+		r := br.run(c.lang, insn(c.bytes, c.ctx))[0]
+		if r.Err != nil || r.Decoded.Mnemonic != c.want {
+			t.Errorf("%s %s: %+v, want mnemonic %q", c.lang, c.bytes, r, c.want)
+		}
+	}
+}

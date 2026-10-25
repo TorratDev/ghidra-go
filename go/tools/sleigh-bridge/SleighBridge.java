@@ -47,6 +47,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -523,7 +524,9 @@ public class SleighBridge {
 			StringBuilder sb = new StringBuilder();
 			sb.append("{\"addr\":").append(hex(e.addr));
 			sb.append(",\"len\":").append(ins.getLength());
-			sb.append(",\"mnemonic\":").append(quote(ins.getMnemonicString()));
+			// Upper case, as the Ghidra export (ExportAnalysis.java) and Rust ra-sleigh
+			// write it and the comparison matches it exactly: AARCH64 reports "b", "adrp".
+			sb.append(",\"mnemonic\":").append(quote(ins.getMnemonicString().toUpperCase(Locale.ROOT)));
 			sb.append(",\"text\":").append(quote(ins.toString()));
 			sb.append(",\"flow\":").append(quote(flow[0]));
 			sb.append(",\"has_fallthrough\":").append(ins.hasFallthrough());
