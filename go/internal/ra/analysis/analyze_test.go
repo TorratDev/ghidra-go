@@ -222,15 +222,22 @@ func TestLoneCallToExternalThunk(t *testing.T) {
 		ins(0x1010, 5, "CALL", call, 0x1100), // call to a non-thunk, with a fallthrough
 		ins(0x1015, 1, "RET", ret),
 		ins(0x1100, 1, "RET", ret),
+		ins(0x1020, 5, "CALL", call, 0x2010), // call puts@plt, which returns: has a fallthrough
+		ins(0x1025, 1, "RET", ret),
 		ins(0x2000, 6, "JMP", jmp).indirectVia(0x3000).noFall(),
+		ins(0x2010, 6, "JMP", jmp).indirectVia(0x3008).noFall(),
 	)
-	p := newProg(0x1000, 0x200, seeds(0x1000, 0x1010), block(".plt", 0x2000, 0x10, true), block(".got", 0x3000, 0x10, false),
-		func(p *loader.Program) { p.ImportSlots[0x3000] = "abort" })
+	p := newProg(0x1000, 0x200, seeds(0x1000, 0x1010, 0x1020), block(".plt", 0x2000, 0x20, true), block(".got", 0x3000, 0x10, false),
+		func(p *loader.Program) { p.ImportSlots[0x3000], p.ImportSlots[0x3008] = "abort", "puts" })
 	a := run(t, p, d)
 	if f := a.Functions[0x1000]; f == nil || f.Thunk == nil || f.Thunk.Internal != 0x2000 || !f.NoReturn {
 		t.Errorf("cold stub: %+v", f)
 	}
 	if f := a.Functions[0x1010]; f.Thunk != nil || f.NoReturn {
 		t.Errorf("call with a fallthrough: thunk %v, no-return %v", f.Thunk, f.NoReturn)
+	}
+	// only the !HasFT guard keeps a lone call to a returning external thunk out
+	if f := a.Functions[0x1020]; f.Thunk != nil || f.NoReturn {
+		t.Errorf("call to a returning import: thunk %v, no-return %v", f.Thunk, f.NoReturn)
 	}
 }
