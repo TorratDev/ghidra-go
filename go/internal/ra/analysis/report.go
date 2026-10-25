@@ -347,7 +347,7 @@ func buildBlocks(r *core.AnalysisReport, an *Analysis, named map[uint64]bool, ta
 	for _, b := range blocks {
 		r.Blocks = append(r.Blocks, core.BlockInfo{Start: core.Addr(b.start), End: core.Addr(b.end)})
 		li := insns[b.last]
-		if li.D.HasFallthrough && li.D.Flow != sleigh.FlowJump && starts[li.end()] {
+		if li.HasFT && li.D.Flow != sleigh.FlowJump && starts[li.end()] {
 			r.Edges = append(r.Edges, core.EdgeInfo{From: core.Addr(b.start), To: core.Addr(li.end()), Kind: core.EdgeFallthrough})
 		}
 		overridden := li.D.Flow == sleigh.FlowJump && li.D.HasFallthrough

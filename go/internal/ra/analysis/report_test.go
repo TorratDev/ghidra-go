@@ -222,3 +222,25 @@ func TestReportIrelativeThunkTarget(t *testing.T) {
 		}
 	}
 }
+
+// A call cut by no-return analysis (HasFT false) has no fallthrough edge to
+// the block that starts right after it, though the block set is unchanged.
+func TestNoFallthroughEdgeAfterNoReturnCall(t *testing.T) {
+	call := Decoded{Addr: 0x1000, Len: 5, Mnemonic: "CALL", Flow: sleigh.FlowCall, HasFallthrough: true, Targets: []uint64{0x1100}}
+	an := &Analysis{
+		Insns: map[uint64]*Insn{
+			0x1000: {D: call}, // cut: HasFT false
+			0x1005: {D: ins(0x1005, 1, "RET", ret)},
+		},
+		SortedInsns: []uint64{0x1000, 0x1005},
+		Functions:   map[uint64]*Function{0x1000: {Entry: 0x1000}, 0x1005: {Entry: 0x1005}},
+		SwitchJumps: map[uint64]bool{},
+	}
+	r := Report(newProg(0x1000, 0x200), an)
+	if got := blocksOf(r); !slices.Equal(got, [][2]uint64{{0x1000, 0x1005}, {0x1005, 0x1006}}) {
+		t.Errorf("blocks %#x", got)
+	}
+	if len(r.Edges) != 0 {
+		t.Errorf("edges %+v", r.Edges)
+	}
+}
