@@ -106,6 +106,11 @@ func (a *analyzer) noteGaps() {
 	if !refs {
 		a.logf("gap: the decoder supplies no data references: the report has no data xrefs")
 	}
+	if n, ok := a.dec.(Noter); ok {
+		for _, note := range n.GapNotes() {
+			a.logf("%s", note)
+		}
+	}
 	if a.sdec == nil {
 		a.logf("gap: the decoder has no register state: block-local constant propagation did not run")
 	}

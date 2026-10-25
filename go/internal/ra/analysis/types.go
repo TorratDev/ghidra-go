@@ -98,6 +98,10 @@ type StateDecoder interface {
 	DecodeIn(addr uint64, bytes []byte, state *RegState) (*Decoded, bool)
 }
 
+// Noter is implemented by decoders that have gaps of their own to report; the
+// notes go into the analysis diagnostics.
+type Noter interface{ GapNotes() []string }
+
 // Language is the part of the language record and install the analysis needs.
 type Language struct {
 	sleigh.Language

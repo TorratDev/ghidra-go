@@ -40,8 +40,26 @@ type BridgeDecoder struct {
 	stdin   io.WriteCloser
 	out     *bufio.Reader
 	context sleigh.Context
-	// Calls counts bridge round trips.
+	// contexts holds the context to decode an address with; an address not in
+	// it uses the language's initial context. Used holds the context the
+	// bridge reports having used for each decoded address.
+	contexts map[uint64]sleigh.Context
+	Used     map[uint64]sleigh.Context
+	// Calls counts bridge round trips: one per instruction, not batched.
 	Calls int
+}
+
+// SetContext sets the context value to decode addr with (ARM/Thumb mode, for
+// instance). The analysis does not propagate context changes yet, so nothing
+// calls this during Analyze; a caller that knows the mode can.
+func (b *BridgeDecoder) SetContext(addr uint64, ctx sleigh.Context) { b.contexts[addr] = ctx }
+
+// GapNotes are added to the analysis diagnostics.
+func (b *BridgeDecoder) GapNotes() []string {
+	return []string{
+		fmt.Sprintf("gap: the Java bridge decodes one instruction per round trip, unbatched (%d so far); the static-glibc binary is too large to analyze this way", b.Calls),
+		"gap: the analysis does not propagate context changes (Thumb mode switches); only addresses given to SetContext decode with another context",
+	}
 }
 
 // StartBridge starts the bridge and reads the language record.
@@ -71,7 +89,7 @@ func StartBridge(cfg BridgeConfig) (*BridgeDecoder, *sleigh.Language, error) {
 		return nil, nil, err
 	}
 	return &BridgeDecoder{cfg: cfg, lang: lang, cmd: cmd, stdin: in, out: bufio.NewReader(out),
-		context: sleigh.Context(lang.InitialContext)}, lang, nil
+		context: sleigh.Context(lang.InitialContext), contexts: map[uint64]sleigh.Context{}, Used: map[uint64]sleigh.Context{}}, lang, nil
 }
 
 // Close ends the bridge process.
@@ -80,13 +98,17 @@ func (b *BridgeDecoder) Close() error {
 	return b.cmd.Wait()
 }
 
-// Decode decodes one instruction with the language's initial context. The
-// bridge reads at most 16 bytes.
+// Decode decodes one instruction with the context set for its address, or the
+// language's initial context. The bridge reads at most 16 bytes.
 func (b *BridgeDecoder) Decode(addr uint64, bytes []byte) (*Decoded, bool) {
 	if len(bytes) > 16 {
 		bytes = bytes[:16]
 	}
-	batch := []sleigh.Insn{{Addr: core.Addr(addr), Bytes: bytes, Context: b.context}}
+	ctx, ok := b.contexts[addr]
+	if !ok {
+		ctx = b.context
+	}
+	batch := []sleigh.Insn{{Addr: core.Addr(addr), Bytes: bytes, Context: ctx}}
 	if err := sleigh.WriteRequest(b.stdin, sleigh.Request{Language: b.cfg.LanguageID, Batch: batch}); err != nil {
 		return nil, false
 	}
@@ -96,6 +118,7 @@ func (b *BridgeDecoder) Decode(addr uint64, bytes []byte) (*Decoded, bool) {
 		return nil, false
 	}
 	s := res[0].Decoded
+	b.Used[addr] = s.Context
 	d := &Decoded{Addr: addr, Len: s.Len, Mnemonic: s.Mnemonic, Text: s.Text, Flow: s.Flow,
 		HasFallthrough: s.HasFallthrough, Indirect: s.Indirect}
 	for _, t := range s.Targets {

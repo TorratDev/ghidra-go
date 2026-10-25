@@ -200,3 +200,15 @@ func TestGapsAreRecorded(t *testing.T) {
 		t.Errorf("diagnostics %q", a.Diagnostics)
 	}
 }
+
+type notingFake struct{ fake }
+
+func (notingFake) GapNotes() []string { return []string{"gap: test note"} }
+
+// Decoders with gaps of their own add them to the diagnostics.
+func TestDecoderGapNotes(t *testing.T) {
+	a := run(t, newProg(0x1000, 0x100, seeds(0x1000)), notingFake{fake{}.add(ins(0x1000, 1, "RET", ret))})
+	if !slices.Contains(a.Diagnostics, "gap: test note") {
+		t.Errorf("%q", a.Diagnostics)
+	}
+}

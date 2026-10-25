@@ -22,24 +22,28 @@ func reportOf(t *testing.T, p *loader.Program, d fake) *core.AnalysisReport {
 	return Report(p, run(t, p, d))
 }
 
-// 8. A block starts at a symbol, a function entry, a flow target or an
-// instruction a flow reference points into, and after an instruction without
-// fallthrough or one that ends a block. A data-only reference does not start one.
+// 8. A block starts at an instruction with a symbol or any reference to it,
+// data references included (SimpleBlockModel.isBlockStart is
+// SymbolTable.hasSymbol), and after an instruction without fallthrough or one
+// that ends a block.
 func TestBlockStartsFollowGhidrasRule(t *testing.T) {
 	read := ins(0x1000, 1, "MOV", fall)
 	read.DataRefs = []DataRef{{0x1002, AccessRead}, {0x1003, AccessAddress}} // data-only references to instructions
 	d := fake{}.add(read, ins(0x1001, 1, "NOP", fall), ins(0x1002, 1, "NOP", fall), ins(0x1003, 1, "NOP", fall), ins(0x1004, 1, "RET", ret))
 	r := reportOf(t, newProg(0x1000, 0x100, seeds(0x1000), block(".data", 0x4000, 8, false)), d)
-	if got := blocksOf(r); !slices.Equal(got, [][2]uint64{{0x1000, 0x1005}}) {
-		t.Errorf("data references split the block: %#x", got)
+	if got := blocksOf(r); !slices.Equal(got, [][2]uint64{{0x1000, 0x1002}, {0x1002, 0x1003}, {0x1003, 0x1005}}) {
+		t.Errorf("data references: %#x", got)
 	}
-	// the data references are in the report as xrefs
 	if len(r.Xrefs) != 2 {
 		t.Errorf("xrefs %v", r.Xrefs)
 	}
-
-	// a jump from another function to 0x1002 does start a block there
-	other := fake{}.add(read, ins(0x1001, 1, "NOP", fall), ins(0x1002, 1, "NOP", fall), ins(0x1003, 1, "NOP", fall), ins(0x1004, 1, "RET", ret),
+	// the same code without the references is one block
+	plain := fake{}.add(ins(0x1000, 1, "MOV", fall), ins(0x1001, 1, "NOP", fall), ins(0x1002, 1, "NOP", fall), ins(0x1003, 1, "NOP", fall), ins(0x1004, 1, "RET", ret))
+	if got := blocksOf(reportOf(t, newProg(0x1000, 0x100, seeds(0x1000)), plain)); !slices.Equal(got, [][2]uint64{{0x1000, 0x1005}}) {
+		t.Errorf("no references: %#x", got)
+	}
+	// a jump from another function to 0x1002 starts a block there
+	other := fake{}.add(ins(0x1000, 1, "MOV", fall), ins(0x1001, 1, "NOP", fall), ins(0x1002, 1, "NOP", fall), ins(0x1003, 1, "NOP", fall), ins(0x1004, 1, "RET", ret),
 		ins(0x1100, 1, "NOP", fall), ins(0x1101, 5, "JMP", jmp, 0x1002))
 	r = reportOf(t, newProg(0x1000, 0x200, seeds(0x1000, 0x1100)), other)
 	if got := blocksOf(r); !slices.Equal(got, [][2]uint64{{0x1000, 0x1002}, {0x1002, 0x1005}, {0x1100, 0x1106}}) {
@@ -47,12 +51,13 @@ func TestBlockStartsFollowGhidrasRule(t *testing.T) {
 	}
 }
 
-func TestOffcutFlowReferenceStartsABlockAtTheInstruction(t *testing.T) {
-	// the 3-byte instruction at 0x1001 is jumped into at 0x1002
+// A flow reference into the middle of an instruction starts no block: Ghidra
+// asks hasSymbol of the instruction's own address.
+func TestOffcutReferenceStartsNoBlock(t *testing.T) {
 	d := fake{}.add(ins(0x1000, 1, "NOP", fall), ins(0x1001, 3, "MOV", fall), ins(0x1004, 1, "RET", ret),
 		ins(0x1100, 1, "NOP", fall), ins(0x1101, 5, "JMP", jmp, 0x1002))
 	r := reportOf(t, newProg(0x1000, 0x200, seeds(0x1000, 0x1100)), d)
-	if got := blocksOf(r); !slices.Equal(got, [][2]uint64{{0x1000, 0x1001}, {0x1001, 0x1005}, {0x1100, 0x1106}}) {
+	if got := blocksOf(r); !slices.Equal(got, [][2]uint64{{0x1000, 0x1005}, {0x1100, 0x1106}}) {
 		t.Errorf("%#x", got)
 	}
 }

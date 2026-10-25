@@ -285,13 +285,13 @@ func Report(prog *loader.Program, an *Analysis) *core.AnalysisReport {
 	return r
 }
 
-// buildBlocks is Ghidra's BasicBlockModel. A block starts at a labelled
-// instruction (a symbol, a function entry, the target of a flow reference, or
-// an instruction a flow reference points into, which is an offcut) or after an
-// instruction that has no fallthrough or ends a block (jump, return,
-// terminator); calls do not end blocks. Data references do not start blocks.
-// Fallthrough is the instruction's own has_fallthrough, not the flow cut after
-// a call to a no-return function.
+// buildBlocks is Ghidra's SimpleBlockModel. A block starts at an instruction
+// that has a symbol or any reference to it (isBlockStart asks
+// SymbolTable.hasSymbol, which is true for a symbol or any reference to the
+// address: flow or data, SymbolManager.hasSymbol), and after an instruction
+// that has no fallthrough or ends a block (jump, return, terminator); calls do
+// not end blocks. Fallthrough is the instruction's own has_fallthrough, not the
+// flow cut after a call to a no-return function.
 func buildBlocks(r *core.AnalysisReport, an *Analysis, named map[uint64]bool, tail func(*Insn) bool) {
 	labels := map[uint64]bool{}
 	for a := range named {
@@ -305,23 +305,8 @@ func buildBlocks(r *core.AnalysisReport, an *Analysis, named map[uint64]bool, ta
 	}
 	insns := an.Insns
 	sorted := an.SortedInsns
-	containing := func(addr uint64) *Insn {
-		k := sort.Search(len(sorted), func(k int) bool { return sorted[k] > addr })
-		if k == 0 {
-			return nil
-		}
-		if i := insns[sorted[k-1]]; addr < i.end() {
-			return i
-		}
-		return nil
-	}
 	for _, x := range r.Xrefs {
-		switch x.Kind {
-		case core.XrefCall, core.XrefJump, core.XrefCondJump:
-			if i := containing(uint64(x.To)); i != nil {
-				labels[i.D.Addr] = true // the target, or the instruction it points into (offcut)
-			}
-		}
+		labels[uint64(x.To)] = true // any reference, flow or data
 	}
 	endsBlock := func(i *Insn) bool {
 		if !i.D.HasFallthrough {
