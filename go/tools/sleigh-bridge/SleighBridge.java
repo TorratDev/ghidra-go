@@ -526,7 +526,7 @@ public class SleighBridge {
 			sb.append(",\"len\":").append(ins.getLength());
 			// Upper case, as the Ghidra export (ExportAnalysis.java) and Rust ra-sleigh
 			// write it and the comparison matches it exactly: AARCH64 reports "b", "adrp".
-			sb.append(",\"mnemonic\":").append(quote(ins.getMnemonicString().toUpperCase(Locale.ROOT)));
+			sb.append(",\"mnemonic\":").append(quote(mnemonic(ins)));
 			sb.append(",\"text\":").append(quote(ins.toString()));
 			sb.append(",\"flow\":").append(quote(flow[0]));
 			sb.append(",\"has_fallthrough\":").append(ins.hasFallthrough());
@@ -652,6 +652,11 @@ public class SleighBridge {
 		}
 	}
 
+	/** The mnemonic as the contract reports it: upper case in every language. */
+	static String mnemonic(Instruction ins) {
+		return ins.getMnemonicString().toUpperCase(Locale.ROOT);
+	}
+
 	static boolean isMemory(Varnode v) {
 		return !v.isConstant() && v.getAddress().getAddressSpace().isMemorySpace();
 	}
@@ -703,6 +708,7 @@ public class SleighBridge {
 	static Facts facts(Instruction ins, Register pcReg, long instNext) {
 		Facts f = new Facts();
 		Consts c = new Consts();
+		String mnemonic = mnemonic(ins);
 		Varnode pc = pcReg == null ? null : new Varnode(pcReg.getAddress(), pcReg.getMinimumByteSize());
 		for (PcodeOp op : ins.getPcode(false)) {
 			Varnode out = op.getOutput();
@@ -787,7 +793,7 @@ public class SleighBridge {
 			}
 			if (val != null && !out.isUnique() && !isMemory(out) && immediate) {
 				long v = mask(val, out.getSize());
-				if (!out.equals(pc) && v != instNext && !ins.getMnemonicString().startsWith("ADRP")) {
+				if (!out.equals(pc) && v != instNext && !mnemonic.startsWith("ADRP")) {
 					f.ref(v, "address");
 				}
 			}

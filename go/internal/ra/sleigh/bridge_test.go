@@ -394,3 +394,14 @@ func TestBridgeMnemonicCase(t *testing.T) {
 		}
 	}
 }
+
+// ADRP materializes a page base that Ghidra does not reference (the use site
+// does): the mnemonic check that skips it sees the upper-cased name.
+func TestBridgeAdrpHasNoDataRef(t *testing.T) {
+	a64 := languageInfo(t, "AARCH64:LE:64:v8A")
+	b, _ := hex.DecodeString("000000b0") // adrp x0, #0x2000
+	r := startBridge(t).run("AARCH64:LE:64:v8A", []Insn{{0x1000, b, a64.InitialContext}})[0]
+	if r.Err != nil || r.Decoded.Mnemonic != "ADRP" || len(r.Decoded.DataRefs) != 0 {
+		t.Errorf("%+v", r)
+	}
+}
