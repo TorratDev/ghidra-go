@@ -51,7 +51,7 @@ func TestFlowMappingRows(t *testing.T) {
 
 func TestUnknownFlowNamesAreErrors(t *testing.T) {
 	// Ghidra FlowTypes the table does not list, a case slip and an empty name
-	for _, n := range []string{"COMPUTED_JUMP", "COMPUTED_CALL", "CALL_TERMINATOR", "JUMP_TERMINATOR",
+	for _, n := range []string{"COMPUTED_JUMP", "COMPUTED_CALL", "CONDITIONAL_COMPUTED_JUMP",
 		"INDIRECTION", "fall_through", "Fallthrough", "FALL THROUGH", "", "TERMINATOR "} {
 		if k, err := FlowFromGhidra(n); err == nil {
 			t.Errorf("%q accepted as %v", n, k)
@@ -62,9 +62,9 @@ func TestUnknownFlowNamesAreErrors(t *testing.T) {
 }
 
 const (
-	callLine = `{"addr":"0x1000","len":5,"mnemonic":"CALL","text":"CALL 0x100a","flow":"UNCONDITIONAL_CALL","has_fallthrough":true,"targets":["0x100a"],"indirect":false,"context":0}`
-	jeLine   = `{"addr":"0x1005","len":2,"mnemonic":"JZ","text":"JZ 0x1009","flow":"CONDITIONAL_JUMP","has_fallthrough":true,"targets":["0x1009"],"indirect":false,"context":0}`
-	retLine  = `{"addr":"0x1007","len":1,"mnemonic":"RET","text":"RET","flow":"TERMINATOR","has_fallthrough":false,"targets":[],"indirect":false,"context":0}`
+	callLine = `{"addr":"0x1000","len":5,"mnemonic":"CALL","text":"CALL 0x100a","flow":"UNCONDITIONAL_CALL","has_fallthrough":true,"targets":["0x100a"],"indirect":false,"context":"0x0"}`
+	jeLine   = `{"addr":"0x1005","len":2,"mnemonic":"JZ","text":"JZ 0x1009","flow":"CONDITIONAL_JUMP","has_fallthrough":true,"targets":["0x1009"],"indirect":false,"context":"0x0"}`
+	retLine  = `{"addr":"0x1007","len":1,"mnemonic":"RET","text":"RET","flow":"TERMINATOR","has_fallthrough":false,"targets":[],"indirect":false,"context":"0x0"}`
 )
 
 func TestFixtureBatch(t *testing.T) {
@@ -77,7 +77,7 @@ func TestFixtureBatch(t *testing.T) {
 	if err := WriteRequest(&out, req); err != nil {
 		t.Fatal(err)
 	}
-	const want = `{"language":"x86:LE:64:default","batch":[{"addr":"0x1000","bytes":"e805000000","context":0},{"addr":"0x1005","bytes":"7402","context":0},{"addr":"0x1007","bytes":"c3","context":0}]}` + "\n"
+	const want = `{"language":"x86:LE:64:default","batch":[{"addr":"0x1000","bytes":"e805000000","context":"0x0"},{"addr":"0x1005","bytes":"7402","context":"0x0"},{"addr":"0x1007","bytes":"c3","context":"0x0"}]}` + "\n"
 	if out.String() != want {
 		t.Errorf("request line:\n%s\nwant:\n%s", out.String(), want)
 	}
@@ -86,9 +86,16 @@ func TestFixtureBatch(t *testing.T) {
 		t.Fatalf("%v %+v", err, back)
 	}
 
-	got, err := ReadResponses(bufio.NewReader(strings.NewReader(callLine+"\n"+jeLine+"\n"+retLine+"\n")), 3)
+	res, err := ReadResponses(bufio.NewReader(strings.NewReader(callLine+"\n"+jeLine+"\n"+retLine+"\n")), req.Batch)
 	if err != nil {
 		t.Fatal(err)
+	}
+	var got []*Decoded
+	for i, r := range res {
+		if r.Err != nil {
+			t.Fatalf("entry %d: %v", i, r.Err)
+		}
+		got = append(got, r.Decoded)
 	}
 	if got[0].Flow != FlowCall || got[0].Mnemonic != "CALL" || got[0].Len != 5 || !got[0].HasFallthrough || !slices.Equal(got[0].Targets, []core.Addr{0x100a}) {
 		t.Errorf("call %+v", got[0])
@@ -109,7 +116,7 @@ func TestFixtureBatch(t *testing.T) {
 }
 
 func TestContextIsCarriedPerAddress(t *testing.T) {
-	req, err := ParseRequest([]byte(`{"language":"ARM:LE:32:v8","batch":[{"addr":"0x100","bytes":"00f020e3","context":0},{"addr":"0x104","bytes":"00f020e3","context":1},{"addr":"0x108","bytes":"00f020e3","context":18446744073709551615}]}`))
+	req, err := ParseRequest([]byte(`{"language":"ARM:LE:32:v8","batch":[{"addr":"0x100","bytes":"00f020e3","context":"0x0"},{"addr":"0x104","bytes":"00f020e3","context":"0x1"},{"addr":"0x108","bytes":"00f020e3","context":"0xffffffffffffffff"}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,22 +125,46 @@ func TestContextIsCarriedPerAddress(t *testing.T) {
 	}
 	// the bridge reports the context it used for each instruction
 	lines := ""
-	for i, c := range []string{"0", "1", "18446744073709551615"} {
-		lines += strings.Replace(strings.Replace(callLine, `"context":0`, `"context":`+c, 1), `"0x1000"`, []string{`"0x100"`, `"0x104"`, `"0x108"`}[i], 1) + "\n"
+	for i, c := range []string{"0x0", "0x1", "0xffffffffffffffff"} {
+		l := strings.Replace(callLine, `"context":"0x0"`, `"context":"`+c+`"`, 1)
+		lines += strings.Replace(l, `"0x1000"`, []string{`"0x100"`, `"0x104"`, `"0x108"`}[i], 1) + "\n"
 	}
-	got, err := ReadResponses(bufio.NewReader(strings.NewReader(lines)), 3)
+	res, err := ReadResponses(bufio.NewReader(strings.NewReader(lines)), req.Batch)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got[0].Context != 0 || got[1].Context != 1 || got[2].Context != 1<<64-1 || got[1].Addr != 0x104 {
-		t.Errorf("%+v", got)
+	if res[0].Decoded.Context != 0 || res[1].Decoded.Context != 1 || res[2].Decoded.Context != 1<<64-1 || res[1].Decoded.Addr != 0x104 {
+		t.Errorf("%+v", res)
+	}
+	b, _ := json.Marshal(res[2].Decoded)
+	if !strings.Contains(string(b), `"context":"0xffffffffffffffff"`) {
+		t.Errorf("marshalled %s", b)
+	}
+}
+
+// A bare number, a negative number and non-hex text are not contexts.
+func TestContextMustBeAHexString(t *testing.T) {
+	for _, c := range []string{`0`, `1`, `-1`, `18446744073709551615`, `1.5`, `true`, `null`, `"-1"`, `"zz"`, `""`, `"0x"`, `"0x10000000000000000"`} {
+		req := `{"language":"x","batch":[{"addr":"0x1","bytes":"90","context":` + c + `}]}`
+		if _, err := ParseRequest([]byte(req)); err == nil {
+			t.Errorf("request context %s accepted", c)
+		}
+		resp := strings.Replace(callLine, `"context":"0x0"`, `"context":`+c, 1)
+		if _, err := ParseResponse([]byte(resp)); err == nil {
+			t.Errorf("response context %s accepted", c)
+		}
+	}
+	for _, c := range []string{`"0x0"`, `"0X1F"`, `"0xdeadbeef"`} {
+		if _, err := ParseRequest([]byte(`{"language":"x","batch":[{"addr":"0x1","bytes":"90","context":` + c + `}]}`)); err != nil {
+			t.Errorf("context %s: %v", c, err)
+		}
 	}
 }
 
 func TestParseResponseRejects(t *testing.T) {
 	good := map[string]string{
 		"addr": `"0x1000"`, "len": `5`, "mnemonic": `"CALL"`, "text": `"CALL 0x100a"`, "flow": `"UNCONDITIONAL_CALL"`,
-		"has_fallthrough": `true`, "targets": `["0x100a"]`, "indirect": `false`, "context": `0`,
+		"has_fallthrough": `true`, "targets": `["0x100a"]`, "indirect": `false`, "context": `"0x0"`,
 	}
 	order := []string{"addr", "len", "mnemonic", "text", "flow", "has_fallthrough", "targets", "indirect", "context"}
 	build := func(mod func(m map[string]string)) string {
@@ -182,7 +213,8 @@ func TestParseResponseRejects(t *testing.T) {
 		"bad address":     {func(m map[string]string) { m["addr"] = `"0xZZ"` }, `bad hex address`},
 		"flow not string": {func(m map[string]string) { m["flow"] = `3` }, `flow`},
 		"targets entry":   {func(m map[string]string) { m["targets"] = `["nope"]` }, `bad hex address`},
-		"negative ctx":    {func(m map[string]string) { m["context"] = `-1` }, `context`},
+		"numeric ctx":     {func(m map[string]string) { m["context"] = `0` }, `context must be a hex string`},
+		"negative ctx":    {func(m map[string]string) { m["context"] = `-1` }, `context must be a hex string`},
 	} {
 		if _, err := ParseResponse([]byte(build(c.mod))); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: error %v, want it to contain %q", name, err, c.want)
@@ -200,47 +232,144 @@ func TestParseResponseRejects(t *testing.T) {
 	}
 }
 
+func batchOf(addrs ...core.Addr) []Insn {
+	var b []Insn
+	for _, a := range addrs {
+		b = append(b, Insn{Addr: a, Bytes: []byte{0x90}})
+	}
+	return b
+}
+
 func TestBridgeErrorObject(t *testing.T) {
 	_, err := ParseResponse([]byte(`{"error":"no instruction at 0x1000"}`))
 	var be *BridgeError
 	if !errors.As(err, &be) || be.Message != "no instruction at 0x1000" {
 		t.Fatalf("%v", err)
 	}
-	for _, line := range []string{`{"error":""}`, `{"error":3}`, `{"error":"x","addr":"0x1"}`, `{"error":null}`} {
+	for _, line := range []string{`{"error":""}`, `{"error":3}`, `{"error":"x","addr":"0x1"}`, `{"error":null}`, `{"Error":"x"}`} {
 		if _, err := ParseResponse([]byte(line)); err == nil || errors.As(err, &be) {
 			t.Errorf("%s: %v (want a malformed-response error, not a bridge error)", line, err)
 		}
 	}
-	// the batch stops at the first error and says which entry it answers
-	got, err := ReadResponses(bufio.NewReader(strings.NewReader(callLine+"\n"+`{"error":"bad bytes"}`+"\n"+retLine+"\n")), 3)
-	if len(got) != 1 || err == nil || !strings.Contains(err.Error(), "entry 1") || !errors.As(err, &be) {
-		t.Errorf("%d responses, %v", len(got), err)
+}
+
+// An error on one entry must not leave the rest of the batch in the pipe: the
+// next read has to start at the next batch.
+func TestErrorEntryDoesNotDesyncTheStream(t *testing.T) {
+	second := strings.Replace(retLine, `"0x1007"`, `"0x2000"`, 1)
+	stream := bufio.NewReader(strings.NewReader(callLine + "\n" + `{"error":"bad bytes"}` + "\n" + retLine + "\n" + second + "\n"))
+	res, err := ReadResponses(stream, batchOf(0x1000, 0x1005, 0x1007))
+	if err != nil || len(res) != 3 {
+		t.Fatalf("%d results, %v", len(res), err)
 	}
-	// too few lines is an error too
-	if _, err := ReadResponses(bufio.NewReader(strings.NewReader(callLine+"\n")), 2); err == nil || !strings.Contains(err.Error(), "entry 1") {
-		t.Errorf("short output: %v", err)
+	var be *BridgeError
+	if res[0].Err != nil || res[0].Decoded.Addr != 0x1000 {
+		t.Errorf("entry 0 %+v", res[0])
+	}
+	if res[1].Decoded != nil || !errors.As(res[1].Err, &be) || be.Message != "bad bytes" || !strings.Contains(res[1].Err.Error(), "entry 1") {
+		t.Errorf("entry 1 %+v", res[1])
+	}
+	if res[2].Err != nil || res[2].Decoded.Addr != 0x1007 {
+		t.Errorf("entry 2 %+v", res[2])
+	}
+	next, err := ReadResponses(stream, batchOf(0x2000))
+	if err != nil || len(next) != 1 || next[0].Err != nil || next[0].Decoded.Addr != 0x2000 {
+		t.Errorf("second batch: %v %+v", err, next)
+	}
+	// a malformed line is an entry error too, and the batch is still read in full
+	stream = bufio.NewReader(strings.NewReader("not json\n" + retLine + "\n"))
+	res, err = ReadResponses(stream, batchOf(0x1000, 0x1007))
+	if err != nil || res[0].Err == nil || res[1].Err != nil {
+		t.Errorf("malformed line: %v %+v", err, res)
+	}
+}
+
+func TestAddrMismatchIsAHardError(t *testing.T) {
+	// entry 1 is answered with the response for 0x1007
+	stream := bufio.NewReader(strings.NewReader(callLine + "\n" + retLine + "\n" + retLine + "\n"))
+	res, err := ReadResponses(stream, batchOf(0x1000, 0x1005, 0x1007))
+	var mm *AddrMismatchError
+	if !errors.As(err, &mm) || mm.Entry != 1 || mm.Got != 0x1007 || mm.Want != 0x1005 || !strings.Contains(err.Error(), "entry 1") {
+		t.Fatalf("error %v", err)
+	}
+	if len(res) != 3 || res[0].Err != nil || res[1].Err == nil || res[1].Decoded != nil || res[2].Err != nil {
+		t.Errorf("results %+v", res)
+	}
+}
+
+func TestShortStreamIsAStreamError(t *testing.T) {
+	res, err := ReadResponses(bufio.NewReader(strings.NewReader(callLine+"\n")), batchOf(0x1000, 0x1005))
+	if err == nil || !strings.Contains(err.Error(), "entry 1") || len(res) != 1 || res[0].Err != nil {
+		t.Errorf("short output: %v %+v", err, res)
 	}
 	// a last line without a newline still counts
-	if got, err := ReadResponses(bufio.NewReader(strings.NewReader(retLine)), 1); err != nil || len(got) != 1 {
+	if res, err := ReadResponses(bufio.NewReader(strings.NewReader(retLine)), batchOf(0x1007)); err != nil || len(res) != 1 || res[0].Err != nil {
 		t.Errorf("no trailing newline: %v", err)
 	}
 }
 
+func TestDuplicateAndCaseVariantKeysAreRejected(t *testing.T) {
+	// encoding/json takes the last duplicate and matches keys case-insensitively
+	for name, c := range map[string]struct{ line, want string }{
+		"duplicate key":      {strings.Replace(callLine, `"len":5,`, `"len":5,"len":6,`, 1), `duplicate field "len"`},
+		"duplicate addr":     {strings.Replace(callLine, `{"addr"`, `{"addr":"0x1","addr"`, 1), `duplicate field "addr"`},
+		"case variant":       {strings.Replace(callLine, `"mnemonic"`, `"Mnemonic"`, 1), `unknown field "Mnemonic"`},
+		"case variant twin":  {strings.Replace(callLine, `"len":5,`, `"len":5,"LEN":6,`, 1), `unknown field "LEN"`},
+		"upper case flow":    {strings.Replace(callLine, `"flow"`, `"FLOW"`, 1), `unknown field "FLOW"`},
+		"nested duplicate":   {`{"language":"x","batch":[{"addr":"0x1","addr":"0x2","bytes":"90","context":"0x0"}]}`, `duplicate field "addr"`},
+		"nested case":        {`{"language":"x","batch":[{"Addr":"0x1","bytes":"90","context":"0x0"}]}`, `unknown field "Addr"`},
+		"request case":       {`{"Language":"x","batch":[{"addr":"0x1","bytes":"90","context":"0x0"}]}`, `unknown field "Language"`},
+		"language duplicate": {strings.Replace(goodLanguage, `"id":`, `"id":"a","id":`, 1), `duplicate field "id"`},
+		"varnode case":       {strings.Replace(goodLanguage, `"space":"register","offset":128`, `"Space":"register","offset":128`, 1), `unknown field "Space"`},
+		"error duplicate":    {`{"error":"a","error":"b"}`, `duplicate field "error"`},
+	} {
+		var err error
+		switch {
+		case strings.HasPrefix(c.line, `{"language"`), strings.HasPrefix(c.line, `{"Language"`):
+			_, err = ParseRequest([]byte(c.line))
+		case strings.HasPrefix(c.line, `{"id"`):
+			_, err = ParseLanguage([]byte(c.line))
+		default:
+			_, err = ParseResponse([]byte(c.line))
+		}
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: error %v, want it to contain %q", name, err, c.want)
+		}
+	}
+}
+
+func TestBridgeRuleFlowNames(t *testing.T) {
+	for _, n := range []string{"CALL_TERMINATOR", "JUMP_TERMINATOR", "CALLOTHER_OVERRIDE_CALL", "CALLOTHER_OVERRIDE_JUMP", "CALLOTHER_OVERRIDE_X"} {
+		_, err := FlowFromGhidra(n)
+		if err == nil || !strings.Contains(err.Error(), "bridge rule") || !strings.Contains(err.Error(), n) {
+			t.Errorf("%s: %v", n, err)
+		}
+		line := strings.Replace(callLine, `"UNCONDITIONAL_CALL"`, `"`+n+`"`, 1)
+		if _, err := ParseResponse([]byte(line)); err == nil || !strings.Contains(err.Error(), "bridge rule") {
+			t.Errorf("response with %s: %v", n, err)
+		}
+	}
+	// names that are merely unknown do not claim a bridge rule
+	if _, err := FlowFromGhidra("CALLOTHER_OVERRIDE"); err == nil || strings.Contains(err.Error(), "bridge rule") {
+		t.Errorf("CALLOTHER_OVERRIDE without the suffix: %v", err)
+	}
+}
+
 func TestParseRequestRejects(t *testing.T) {
-	const entry = `{"addr":"0x1","bytes":"90","context":0}`
+	const entry = `{"addr":"0x1","bytes":"90","context":"0x0"}`
 	for name, c := range map[string]struct{ line, want string }{
 		"no language":    {`{"batch":[` + entry + `]}`, `missing required field "language"`},
 		"no batch":       {`{"language":"x"}`, `missing required field "batch"`},
 		"unknown field":  {`{"language":"x","batch":[` + entry + `],"opts":1}`, `unknown field "opts"`},
 		"empty language": {`{"language":"","batch":[` + entry + `]}`, `"language" is empty`},
 		"empty batch":    {`{"language":"x","batch":[]}`, `"batch" is empty`},
-		"no addr":        {`{"language":"x","batch":[{"bytes":"90","context":0}]}`, `batch[0]: missing required field "addr"`},
-		"no bytes":       {`{"language":"x","batch":[{"addr":"0x1","context":0}]}`, `missing required field "bytes"`},
+		"no addr":        {`{"language":"x","batch":[{"bytes":"90","context":"0x0"}]}`, `batch[0]: missing required field "addr"`},
+		"no bytes":       {`{"language":"x","batch":[{"addr":"0x1","context":"0x0"}]}`, `missing required field "bytes"`},
 		"no context":     {`{"language":"x","batch":[` + entry + `,{"addr":"0x1","bytes":"90"}]}`, `batch[1]: missing required field "context"`},
 		"unknown insn":   {`{"language":"x","batch":[{"addr":"0x1","bytes":"90","context":0,"mode":1}]}`, `unknown field "mode"`},
-		"odd hex":        {`{"language":"x","batch":[{"addr":"0x1","bytes":"9","context":0}]}`, `"bytes" must be non-empty hex`},
-		"not hex":        {`{"language":"x","batch":[{"addr":"0x1","bytes":"zz","context":0}]}`, `"bytes" must be non-empty hex`},
-		"empty bytes":    {`{"language":"x","batch":[{"addr":"0x1","bytes":"","context":0}]}`, `"bytes" must be non-empty hex`},
+		"odd hex":        {`{"language":"x","batch":[{"addr":"0x1","bytes":"9","context":"0x0"}]}`, `"bytes" must be non-empty hex`},
+		"not hex":        {`{"language":"x","batch":[{"addr":"0x1","bytes":"zz","context":"0x0"}]}`, `"bytes" must be non-empty hex`},
+		"empty bytes":    {`{"language":"x","batch":[{"addr":"0x1","bytes":"","context":"0x0"}]}`, `"bytes" must be non-empty hex`},
 		"trailing":       {`{"language":"x","batch":[` + entry + `]} x`, `trailing data`},
 	} {
 		if _, err := ParseRequest([]byte(c.line)); err == nil || !strings.Contains(err.Error(), c.want) {

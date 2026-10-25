@@ -4,7 +4,10 @@
 // the language record. The Java bridge itself is not written yet.
 package sleigh
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // FlowKind is the coarse flow classification (Ghidra FlowType) the analyzers
 // use; it has the eight kinds of the Rust ra-sleigh crate.
@@ -56,15 +59,24 @@ func (k FlowKind) GhidraName() string {
 }
 
 // FlowFromGhidra maps a Ghidra FlowType name to a FlowKind. Only the names of
-// the issue's table are known; any other name (COMPUTED_JUMP, CALL_TERMINATOR,
-// a typo) is an error, never a guess. TERMINATOR is both Return and
-// Terminator in the table; Ghidra cannot tell them apart, so it maps to
-// FlowReturn.
+// the issue's table are known; any other name (COMPUTED_JUMP, a typo) is an
+// error, never a guess. TERMINATOR is both Return and Terminator in the
+// table; Ghidra cannot tell them apart, so it maps to FlowReturn.
+//
+// Bridge rule for the FlowTypes that look like part of the table but are not:
+// CALL_TERMINATOR, JUMP_TERMINATOR and CALLOTHER_OVERRIDE_* (a CALLOTHER
+// instruction whose flow a language overrides) have no mapping in the
+// contract, and the bridge must not emit them. They are rejected with an
+// error that names this rule so a bridge that forwards them fails loudly
+// instead of being mapped by guesswork; give them rows in the table first.
 func FlowFromGhidra(name string) (FlowKind, error) {
 	for _, r := range flowRows {
 		if r.Ghidra == name {
 			return r.Kind, nil
 		}
+	}
+	if name == "CALL_TERMINATOR" || name == "JUMP_TERMINATOR" || strings.HasPrefix(name, "CALLOTHER_OVERRIDE_") {
+		return 0, fmt.Errorf("FlowType %q has no mapping in the contract (bridge rule: CALL_TERMINATOR, JUMP_TERMINATOR and CALLOTHER_OVERRIDE_* must not be emitted)", name)
 	}
 	return 0, fmt.Errorf("unknown FlowType name %q", name)
 }

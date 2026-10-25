@@ -16,23 +16,46 @@ import (
 // The bridge is driven with JSON lines over its stdin and stdout. One request
 // line carries a batch of instructions to decode:
 //
-//	{"language":"x86:LE:64:default","batch":[{"addr":"0x1000","bytes":"e805000000","context":0}]}
+//	{"language":"x86:LE:64:default","batch":[{"addr":"0x1000","bytes":"e805000000","context":"0x0"}]}
 //
 // and the bridge answers with one line per batch entry, in order: either the
 // facts for the instruction,
 //
 //	{"addr":"0x1000","len":5,"mnemonic":"CALL","text":"CALL 0x100a","flow":"UNCONDITIONAL_CALL",
-//	 "has_fallthrough":true,"targets":["0x100a"],"indirect":false,"context":0}
+//	 "has_fallthrough":true,"targets":["0x100a"],"indirect":false,"context":"0x0"}
 //
-// or {"error":"message"} when it cannot decode that entry. Both sides reject
-// unknown and missing fields.
+// or {"error":"message"} when it cannot decode that entry. The bridge always
+// answers every entry of a batch, so an error never leaves the batch short.
+// Both sides reject unknown, missing, duplicate and differently-cased fields.
+// Addresses and contexts are "0x..." hex strings.
+
+// Context is a SLEIGH context register value. On the wire it is a "0x..."
+// hex string, like an address, and a bare JSON number is rejected: a Java long
+// of 2^64-1 prints as -1 and must not turn into a value unnoticed.
+type Context uint64
+
+func (c Context) MarshalJSON() ([]byte, error) { return core.Addr(c).MarshalJSON() }
+
+func (c *Context) UnmarshalJSON(b []byte) error {
+	b = bytes.TrimSpace(b)
+	if len(b) == 0 || b[0] != '"' {
+		return fmt.Errorf("context must be a hex string like \"0x0\", got %s", b)
+	}
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	v, err := core.ParseHex(s)
+	*c = Context(v)
+	return err
+}
 
 // Insn is one batch entry: where the bytes are and the SLEIGH context value
 // (context register bits) to decode them with.
 type Insn struct {
 	Addr    core.Addr
 	Bytes   []byte
-	Context uint64
+	Context Context
 }
 
 type Request struct {
@@ -43,7 +66,7 @@ type Request struct {
 type insnWire struct {
 	Addr    *core.Addr `json:"addr"`
 	Bytes   *string    `json:"bytes"`
-	Context *uint64    `json:"context"`
+	Context *Context   `json:"context"`
 }
 
 type requestWire struct {
@@ -65,9 +88,88 @@ func missing(fields map[string]bool, order ...string) error {
 	return fmt.Errorf("missing required field %q", strings.Join(names, `", "`))
 }
 
-// decodeStrict decodes exactly one JSON value, rejecting unknown fields and
-// trailing data.
-func decodeStrict(data []byte, v any) error {
+// shape describes the object keys a JSON value may have: keys for an object,
+// elem for an array. A nil shape accepts any value.
+type shape struct {
+	keys map[string]*shape
+	elem *shape
+}
+
+func obj(keys ...string) *shape {
+	s := &shape{keys: map[string]*shape{}}
+	for _, k := range keys {
+		s.keys[k] = nil
+	}
+	return s
+}
+
+// checkKeys walks data and rejects a key that is not in the shape, a key that
+// is repeated, and a key that only matches a field in a different case:
+// encoding/json would accept the last two silently.
+func checkKeys(data []byte, s *shape) error {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	var walk func(*shape) error
+	walk = func(s *shape) error {
+		tok, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		switch tok {
+		case json.Delim('{'):
+			seen := map[string]bool{}
+			for dec.More() {
+				kt, err := dec.Token()
+				if err != nil {
+					return err
+				}
+				k := kt.(string)
+				if seen[k] {
+					return fmt.Errorf("duplicate field %q", k)
+				}
+				seen[k] = true
+				var child *shape
+				if s != nil {
+					c, ok := s.keys[k]
+					if !ok {
+						for known := range s.keys {
+							if strings.EqualFold(known, k) {
+								return fmt.Errorf("unknown field %q (field names are case-sensitive, did you mean %q?)", k, known)
+							}
+						}
+						return fmt.Errorf("unknown field %q", k)
+					}
+					child = c
+				}
+				if err := walk(child); err != nil {
+					return err
+				}
+			}
+			_, err := dec.Token()
+			return err
+		case json.Delim('['):
+			var elem *shape
+			if s != nil {
+				elem = s.elem
+			}
+			for dec.More() {
+				if err := walk(elem); err != nil {
+					return err
+				}
+			}
+			_, err := dec.Token()
+			return err
+		}
+		return nil
+	}
+	return walk(s)
+}
+
+// decodeStrict decodes exactly one JSON value into v after checking its keys
+// against s; unknown fields and trailing data are errors.
+func decodeStrict(data []byte, s *shape, v any) error {
+	if err := checkKeys(data, s); err != nil {
+		return err
+	}
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
@@ -93,13 +195,23 @@ func (r Request) MarshalJSON() ([]byte, error) {
 type insnJSON struct {
 	Addr    core.Addr `json:"addr"`
 	Bytes   string    `json:"bytes"`
-	Context uint64    `json:"context"`
+	Context Context   `json:"context"`
 }
+
+var (
+	requestShape = func() *shape {
+		s := obj("language", "batch")
+		s.keys["batch"] = &shape{elem: obj("addr", "bytes", "context")}
+		return s
+	}()
+	responseShape = obj("addr", "len", "mnemonic", "text", "flow", "has_fallthrough", "targets", "indirect", "context")
+	errorShape    = obj("error")
+)
 
 // ParseRequest decodes and validates a request line.
 func ParseRequest(line []byte) (*Request, error) {
 	var w requestWire
-	if err := decodeStrict(line, &w); err != nil {
+	if err := decodeStrict(line, requestShape, &w); err != nil {
 		return nil, fmt.Errorf("request: %w", err)
 	}
 	if err := missing(map[string]bool{"language": w.Language != nil, "batch": w.Batch != nil}, "language", "batch"); err != nil {
@@ -155,7 +267,7 @@ type Decoded struct {
 	// Indirect is set for a branch or call whose target is computed at run time.
 	Indirect bool `json:"indirect"`
 	// Context is the context value the bridge decoded the instruction with.
-	Context uint64 `json:"context"`
+	Context Context `json:"context"`
 }
 
 type decodedWire struct {
@@ -167,7 +279,7 @@ type decodedWire struct {
 	HasFallthrough *bool        `json:"has_fallthrough"`
 	Targets        *[]core.Addr `json:"targets"`
 	Indirect       *bool        `json:"indirect"`
-	Context        *uint64      `json:"context"`
+	Context        *Context     `json:"context"`
 }
 
 // BridgeError is an error object from the bridge.
@@ -187,7 +299,7 @@ func ParseResponse(line []byte) (*Decoded, error) {
 		var e struct {
 			Error *string `json:"error"`
 		}
-		if err := decodeStrict(line, &e); err != nil {
+		if err := decodeStrict(line, errorShape, &e); err != nil {
 			return nil, fmt.Errorf("response: error object: %w", err)
 		}
 		if e.Error == nil || *e.Error == "" {
@@ -196,7 +308,7 @@ func ParseResponse(line []byte) (*Decoded, error) {
 		return nil, &BridgeError{*e.Error}
 	}
 	var w decodedWire
-	if err := decodeStrict(line, &w); err != nil {
+	if err := decodeStrict(line, responseShape, &w); err != nil {
 		return nil, fmt.Errorf("response: %w", err)
 	}
 	if err := missing(map[string]bool{
@@ -235,22 +347,53 @@ func (d Decoded) MarshalJSON() ([]byte, error) {
 	return json.Marshal(decodedWire{&d.Addr, &d.Len, &d.Mnemonic, &d.Text, &name, &d.HasFallthrough, &targets, &d.Indirect, &d.Context})
 }
 
-// ReadResponses reads exactly n response lines, one per batch entry. The
-// first bridge error, malformed line or early end of input stops the read and
-// is returned with the index of the entry it answers; the responses decoded so
-// far are returned too.
-func ReadResponses(r *bufio.Reader, n int) ([]Decoded, error) {
-	var out []Decoded
-	for len(out) < n {
+// Result is the answer for one batch entry: Decoded, or the error that
+// replaced it (a *BridgeError, a malformed line, or an address mismatch).
+type Result struct {
+	Decoded *Decoded
+	Err     error
+}
+
+// AddrMismatchError means the bridge answered an entry with another
+// instruction's address: the request and response lines are out of step.
+type AddrMismatchError struct {
+	Entry     int
+	Got, Want core.Addr
+}
+
+func (e *AddrMismatchError) Error() string {
+	return fmt.Sprintf("entry %d: response addr %#x does not match request addr %#x", e.Entry, uint64(e.Got), uint64(e.Want))
+}
+
+// ReadResponses reads exactly len(batch) response lines, one per entry, and
+// returns one Result for each, so an error on one entry never leaves the rest
+// of the batch unread in the pipe. A decoded response must carry its entry's
+// address. The returned error is for the stream itself (a short read) or, when
+// an address mismatches, *AddrMismatchError after the whole batch was read; it
+// names the first such entry and the stream cannot be trusted afterwards. Per
+// entry errors are in the Results only.
+func ReadResponses(r *bufio.Reader, batch []Insn) ([]Result, error) {
+	out := make([]Result, 0, len(batch))
+	var hard error
+	for i, want := range batch {
 		line, err := r.ReadBytes('\n')
 		if err != nil && len(bytes.TrimSpace(line)) == 0 {
-			return out, fmt.Errorf("entry %d: reading response: %w", len(out), err)
+			return out, fmt.Errorf("entry %d: reading response: %w", i, err)
 		}
 		d, perr := ParseResponse(bytes.TrimSpace(line))
 		if perr != nil {
-			return out, fmt.Errorf("entry %d: %w", len(out), perr)
+			out = append(out, Result{Err: fmt.Errorf("entry %d: %w", i, perr)})
+			continue
 		}
-		out = append(out, *d)
+		if d.Addr != want.Addr {
+			mm := &AddrMismatchError{i, d.Addr, want.Addr}
+			if hard == nil {
+				hard = mm
+			}
+			out = append(out, Result{Err: mm})
+			continue
+		}
+		out = append(out, Result{Decoded: d})
 	}
-	return out, nil
+	return out, hard
 }

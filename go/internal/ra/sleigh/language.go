@@ -28,6 +28,13 @@ type Language struct {
 	IntArgs []Varnode `json:"int_args"`
 }
 
+var languageShape = func() *shape {
+	s := obj("id", "big_endian", "address_size", "initial_context", "pc", "sp", "int_args")
+	vn := obj("space", "offset", "size")
+	s.keys["pc"], s.keys["sp"], s.keys["int_args"] = vn, vn, &shape{elem: vn}
+	return s
+}()
+
 type varnodeWire struct {
 	Space  *string `json:"space"`
 	Offset *uint64 `json:"offset"`
@@ -58,7 +65,7 @@ type languageWire struct {
 // required (int_args may be an empty list); unknown fields are rejected.
 func ParseLanguage(data []byte) (*Language, error) {
 	var w languageWire
-	if err := decodeStrict(data, &w); err != nil {
+	if err := decodeStrict(data, languageShape, &w); err != nil {
 		return nil, fmt.Errorf("language: %w", err)
 	}
 	if err := missing(map[string]bool{
