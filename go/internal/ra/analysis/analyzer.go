@@ -606,9 +606,12 @@ func (a *analyzer) insnEndingAt(loc uint64) *Insn {
 
 // detectThunks marks as a thunk a function whose first real instruction is an
 // unconditional jump to another instruction of the program or through an
-// import slot. The lone-call rule of the Rust version (a stub whose only
-// instruction is a call to a no-return function) is gone: Ghidra's rule
-// depends on analysis order, which static state cannot reproduce.
+// import slot. The general lone-call rule of the Rust version (a stub whose
+// only instruction is a call to a no-return function) is gone: Ghidra's rule
+// depends on analysis order, which static state cannot reproduce, and applied
+// broadly it adds false thunks (about 26 on the static-stripped binary). Only
+// the narrow form stays: a lone call whose target is an external thunk and
+// that cuts its fallthrough (gcc's main.cold calling a PLT stub).
 func (a *analyzer) detectThunks() {
 	for _, e := range sortedKeys(a.funcs) {
 		if _, ok := a.thunks[e]; ok {
@@ -627,6 +630,13 @@ func (a *analyzer) detectThunks() {
 			if isMarker(i.D.Mnemonic) && i.HasFT {
 				cur = i.end()
 				continue
+			}
+			// shortcut: only calls to PLT-style external thunks, not to any
+			// no-return function; widen if the other binaries need it.
+			if i.D.Flow == sleigh.FlowCall && !i.HasFT && len(i.D.Targets) == 1 {
+				if t := i.D.Targets[0]; t != e && a.thunks[t].IsExternal() {
+					a.thunks[e] = ThunkTarget{Internal: t}
+				}
 			}
 			if i.D.Flow == sleigh.FlowJump && !i.D.HasFallthrough {
 				if len(i.D.Targets) == 1 {

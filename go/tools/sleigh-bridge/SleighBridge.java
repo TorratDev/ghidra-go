@@ -634,6 +634,21 @@ public class SleighBridge {
 		}
 	}
 
+	/**
+	 * A constant stored to memory may be a pointer (MOV qword ptr [x], 0x102023):
+	 * an address ref at it, with Rust's >= 0x100 filter against small integers.
+	 * shortcut: any such constant counts, not only mapped ones (the consumer
+	 * drops unmapped targets).
+	 */
+	static void storedConstant(Facts f, Consts c, Varnode v, long instNext) {
+		// An immediate reaches the store as a constant or through a temporary;
+		// a register's known value was recorded where it was materialized.
+		Long val = v != null && (v.isConstant() || v.isUnique()) ? c.get(v) : null;
+		if (val != null && Long.compareUnsigned(val, 0x100) >= 0 && val != instNext) {
+			f.ref(val, "address");
+		}
+	}
+
 	static boolean isMemory(Varnode v) {
 		return !v.isConstant() && v.getAddress().getAddressSpace().isMemorySpace();
 	}
@@ -727,6 +742,7 @@ public class SleighBridge {
 					if (addr != null) {
 						f.ref(addr, "write");
 					}
+					storedConstant(f, c, op.getInput(2), instNext);
 					continue;
 				}
 			}
@@ -763,6 +779,9 @@ public class SleighBridge {
 			// copies of known registers and the return address are not.
 			boolean immediate = (a != null && a.isConstant()) || (b != null && b.isConstant()) ||
 				(a != null && a.isUnique() && av != null);
+			if (isMemory(out) && a != null && a.isConstant() && val != null) {
+				storedConstant(f, c, a, instNext); // MOV [mem], imm folded into a ram varnode
+			}
 			if (val != null && !out.isUnique() && !isMemory(out) && immediate) {
 				long v = mask(val, out.getSize());
 				if (!out.equals(pc) && v != instNext && !ins.getMnemonicString().startsWith("ADRP")) {

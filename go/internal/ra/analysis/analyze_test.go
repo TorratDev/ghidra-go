@@ -212,3 +212,25 @@ func TestDecoderGapNotes(t *testing.T) {
 		t.Errorf("%q", a.Diagnostics)
 	}
 }
+
+// A lone call that cuts its fallthrough and whose target is an external thunk
+// (gcc's main.cold calling the abort PLT stub) is a thunk to that stub and
+// inherits no-return; the same call to a plain function is not.
+func TestLoneCallToExternalThunk(t *testing.T) {
+	d := fake{}.add(
+		ins(0x1000, 5, "CALL", call, 0x2000), // cold: call abort@plt
+		ins(0x1010, 5, "CALL", call, 0x1100), // call to a non-thunk, with a fallthrough
+		ins(0x1015, 1, "RET", ret),
+		ins(0x1100, 1, "RET", ret),
+		ins(0x2000, 6, "JMP", jmp).indirectVia(0x3000).noFall(),
+	)
+	p := newProg(0x1000, 0x200, seeds(0x1000, 0x1010), block(".plt", 0x2000, 0x10, true), block(".got", 0x3000, 0x10, false),
+		func(p *loader.Program) { p.ImportSlots[0x3000] = "abort" })
+	a := run(t, p, d)
+	if f := a.Functions[0x1000]; f == nil || f.Thunk == nil || f.Thunk.Internal != 0x2000 || !f.NoReturn {
+		t.Errorf("cold stub: %+v", f)
+	}
+	if f := a.Functions[0x1010]; f.Thunk != nil || f.NoReturn {
+		t.Errorf("call with a fallthrough: thunk %v, no-return %v", f.Thunk, f.NoReturn)
+	}
+}

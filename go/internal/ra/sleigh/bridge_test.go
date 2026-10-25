@@ -338,6 +338,9 @@ func TestBridgeFacts(t *testing.T) {
 		{"jmp [rax*8+0x2000] (absolute table)", "ff24c500200000", nil, nil, []core.Addr{0x2000}, true},
 		{"lea rdx,[rip+0x10] (PIC base)", "488d1510000000", nil, []DataRef{{0x1017, AccessAddress}}, nil, false},
 		{"movsxd rax,[rdx+rax*4] (PIC load)", "486304 82", nil, nil, nil, true},
+		{"mov qword [rax],0x102023 (pointer store)", "48c70023201000", nil, []DataRef{{0x102023, AccessAddress}}, nil, false},
+		{"mov [0x302a],0x102023 (folded store)", "c7052020000023201000", nil, []DataRef{{0x302a, AccessWrite}, {0x102023, AccessAddress}}, nil, false},
+		{"mov dword [rax],5 (small integer)", "c70005000000", nil, nil, nil, false},
 		{"nop", "90", nil, nil, nil, false},
 	}
 	var batch []Insn
