@@ -1,0 +1,383 @@
+[
+ {
+  "mangled": "_Zxyz"
+ },
+ {
+  "mangled": "_ZGV17globalVariableFoo"
+ },
+ {
+  "mangled": "_ZZ18__gthread_active_pvE20__gthread_active_ptr"
+ },
+ {
+  "mangled": "_ZGVZN10KDirLister11emitChangesEvE3dot"
+ },
+ {
+  "mangled": "_ZN3std2io4Read11read_to_end17hb85a0f6802e14499E"
+ },
+ {
+  "mangled": "_ZN10OpTestTypeC1Eii"
+ },
+ {
+  "mangled": "_ZN10OpTestTypeC2Eii"
+ },
+ {
+  "mangled": "_ZN10OpTestTypeclEf"
+ },
+ {
+  "mangled": "_ZN10OpTestTypeclEi"
+ },
+ {
+  "mangled": "_ZN10OpTestTypecvN16Names"
+ },
+ {
+  "mangled": "_ZN10OpTestTypecvPKcEv"
+ },
+ {
+  "mangled": "_ZN10OpTestTypedaEPv"
+ },
+ {
+  "mangled": "_ZN10OpTestTypedlEPv"
+ },
+ {
+  "mangled": "_ZN10OpTestTypemIERKS_"
+ },
+ {
+  "mangled": "_ZN10OpTestTypemiERKS_"
+ },
+ {
+  "mangled": "_ZN10OpTestTypemmEi"
+ },
+ {
+  "mangled": "_ZN10OpTestTypemmEv"
+ },
+ {
+  "mangled": "_ZN10OpTestTypenaEm"
+ },
+ {
+  "mangled": "_ZN10OpTestTypenwEm"
+ },
+ {
+  "mangled": "_ZN10OpTestTypepLERKS_"
+ },
+ {
+  "mangled": "_ZN10OpTestTypeplERKS_"
+ },
+ {
+  "mangled": "_ZN10OpTestTypeppEi"
+ },
+ {
+  "mangled": "_ZN10OpTestTypeppEv"
+ },
+ {
+  "mangled": "_ZN11myContainerIiElsEi"
+ },
+ {
+  "mangled": "_ZN11myContainerIiElsIdEEbT_"
+ },
+ {
+  "mangled": "_ZN10OpTestTypecvN16NamespaceOpTest116NamespaceOpTest210CastToTypeEEv"
+ },
+ {
+  "mangled": "_ZN10SmallClassadEv"
+ },
+ {
+  "mangled": "_ZN11myContainerIiEltEi"
+ },
+ {
+  "mangled": "_ZltI11myContainerIiEEbRKT_S4_"
+ },
+ {
+  "mangled": "_ZgtRK10complex_ldS1_"
+ },
+ {
+  "mangled": "_Zli5_initPKcm"
+ },
+ {
+  "mangled": "_ZNSt14__array_traitsIPKN4entt10sparse_setI8EntityIdEELm3EE6_S_ptrERA3_KS5_"
+ },
+ {
+  "mangled": "_ZN3ndk4impl15ScopedAResourceIP7AStatusXadL_Z14AStatus_deleteEELS3_0EEaSEOS4_"
+ },
+ {
+  "mangled": "_Z8glob_fn9cilxjmfdebPvPS_"
+ },
+ {
+  "mangled": "_ZNKSt8_Rb_treeI8LocationS0_St9_IdentityIS0_ESt4lessIS0_ESaIS0_EE4findERKS0_"
+ },
+ {
+  "mangled": "_ZSt16__insertion_sortIN9__gnu_cxx17__normal_iteratorIPSt4pairImP7PcodeOpESt6vectorIS5_SaIS5_EEEEPFbRKS5_SC_EEvT_SF_T0_"
+ },
+ {
+  "mangled": "_ZNSt3setIP6bbnodeSt4lessIS1_ESaIS1_EE6insertERKS1_"
+ },
+ {
+  "mangled": "_ZN3Bar4FredC1Ei"
+ },
+ {
+  "mangled": "_ZN6Magick5ImageD1Ev"
+ },
+ {
+  "mangled": "_ZTv0_n24_NSt19basic_ostringstreamIcSt11char_traitsIcE14pool_allocatorIcEED0Ev"
+ },
+ {
+  "mangled": "_ZThn8_N14nsPrintSession6AddRefEv"
+ },
+ {
+  "mangled": "_ZThn8_N14nsPrintSession14QueryInterfaceERK4nsIDPPv"
+ },
+ {
+  "mangled": "_ZTch0_h16_NK8KHotKeys13WindowTrigger4copyEPNS_10ActionDataE"
+ },
+ {
+  "mangled": "_ZZN12PackManifest18CapabilityRegistry18registerCapabilityEN3gsl17basic_string_spanIKcLln1EEEbSt8functionIFbRS_R10PackReportbEEEd_NKUlS6_S8_bE_clES6_S8_b"
+ },
+ {
+  "mangled": "_ZN14GoalDefinitionUt_aSERKS0_"
+ },
+ {
+  "mangled": "_Z9enum_castIN17FurnaceBlockActorUt_EEDcT_"
+ },
+ {
+  "mangled": "_ZN3Foo7getBoolEf"
+ },
+ {
+  "mangled": "_Z7toFloatidcls"
+ },
+ {
+  "mangled": "_ZN6Magick18magickCleanUpGuardE"
+ },
+ {
+  "mangled": "_ZTVN6Magick21DrawableTextAntialiasE"
+ },
+ {
+  "mangled": "_ZGRZNK17KSimpleFileFilter12passesFilterEPK9KFileItemE6dotdot"
+ },
+ {
+  "mangled": "_ZTIN10NonDiamond1AE"
+ },
+ {
+  "mangled": "_ZTI31class_with_trailing_numbers1234"
+ },
+ {
+  "mangled": "_ZTIFR17ClimateAttributesPSt4pairISt17reference_wrapperI5BiomeES2_I24IWorldRegistriesProviderEEE"
+ },
+ {
+  "mangled": "_ZTIN4Arts28FileInputStream_impl_FactoryE"
+ },
+ {
+  "mangled": "_ZTISt14unary_functionIPN9MagickLib12_DrawContextEvE"
+ },
+ {
+  "mangled": "_ZTSSt14unary_functionIPN9MagickLib12_DrawContextEvE"
+ },
+ {
+  "mangled": "_ZTCN4Arts17StdoutWriter_implE68_NS_11Object_skelE"
+ },
+ {
+  "mangled": "_ZTH8SomeName"
+ },
+ {
+  "mangled": "_ZZ16DDDSaveOptionsCBP10_WidgetRecPvS1_E6dialog_0"
+ },
+ {
+  "mangled": "_ZN6Layout8graphNewEPA41_P6_GRAPHPc"
+ },
+ {
+  "mangled": "_Z3aaaILN3bbb3cccE120E3dddE"
+ },
+ {
+  "mangled": "_ZN10mysequenceIiLi5EE9setmemberEii"
+ },
+ {
+  "mangled": "_ZN6Magick5ImageC1ERKSs"
+ },
+ {
+  "mangled": "_ZN6MagickltERKNS_10CoordinateES2_"
+ },
+ {
+  "mangled": "__ZN3WTF15__visitor_tableINS_7VisitorIZZN7WebCore12SubtleCrypto11generateKeyERN3JSC9ExecStateEONS_7VariantIJNS4_6StrongINS4_8JSObjectEEENS_6StringEEEEbONS_6VectorINS2_14CryptoKeyUsageELm0ENS_15CrashOnOverflowELm16ENS_10FastMallocEEEONS_3RefINS2_15DeferredPromiseENS_13DumbPtrTraitsISL_EEEEEN4$_10clEONS7_IJNS_6RefPtrINS2_9CryptoKeyENSM_ISS_EEEENS2_13CryptoKeyPairEEEEEUlRSU_E_JZZNS3_11generateKeyES6_SD_bSJ_SP_ENSQ_clESX_EUlRSV_E_EEEJSU_SV_EE12__trampolineE"
+ },
+ {
+  "mangled": "_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_PKc"
+ },
+ {
+  "mangled": "_ZNSolsEPFRSoS_E"
+ },
+ {
+  "mangled": "_ZTINSt6__ndk110__function6__funcIZZN5dummy2it5other9Namespace8functionEfENK3$"
+ },
+ {
+  "mangled": "_ZNK6Magick9pageImageclERNS_5ImageE"
+ },
+ {
+  "mangled": "_ZNSt14__array_traitsIN12LayerDetails15RandomProviderTIZNKS0_9LayerBase10initRandomEllEUlRljE_EELm4EE6_S_refERA4_KS5_m"
+ },
+ {
+  "mangled": "_ZNSt5_BindIFM13EduAppConfigsKFNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEvEPKS0_EEclIJES6_EET0_DpOT_"
+ },
+ {
+  "mangled": "_Z13reverse_rangeIjLin1EE5RangeIiXT0_EET_"
+ },
+ {
+  "mangled": "_ZN3gsl9to_stringIKcLln1EEENSt7__cxx1112basic_stringINSt12remove_constIT_E4typeESt11char_traitsIS7_ESaIS7_EEENS_17basic_string_spanIS5_XT0_EEE"
+ },
+ {
+  "mangled": "_ZSt11__addressofIKZN7Bedrock9Threading9TLSDetail18DefaultConstructorIPPFbRK20AssertHandlerContextEvE6createEvEUlPS9_E_EPT_RSE_"
+ },
+ {
+  "mangled": "_ZNKSt17integral_constantIbLb0EEcvbEv"
+ },
+ {
+  "mangled": "_ZZNK4entt14basic_registryI8EntityIdE6assureI32FilteredTransformationAttributesI26PreHillsEdgeTransformationEEERKNS2_12pool_handlerIT_EEvENKUlRNS_10sparse_setIS1_EERS2_S1_E_cvPFvSE_SF_S1_EEv"
+ },
+ {
+  "mangled": "_ZNK6Magick5ColorcvSsEv"
+ },
+ {
+  "mangled": "_ZNK17GCC_IndicationPDUcvRK31GCC_ApplicationInvokeIndicationEv"
+ },
+ {
+  "mangled": "_ZdlPv"
+ },
+ {
+  "mangled": "_Znwm"
+ },
+ {
+  "mangled": "_ZNK6Magick9viewImageclERNS_5ImageE"
+ },
+ {
+  "mangled": "_ZN12_GLOBAL__N_120decode_charset_iconvEPKc"
+ },
+ {
+  "mangled": "_ZN5MeCab12_GLOBAL__N_18mystrdupEPKc"
+ },
+ {
+  "mangled": "_ZSt24__uninitialized_copy_auxIPN5MeCab12_GLOBAL__N_15RangeES3_ET0_T_S5_S4_St12__false_type"
+ },
+ {
+  "mangled": "_ZL7pperrorPN12_GLOBAL__N_17ContextEPKc"
+ },
+ {
+  "mangled": "_ZN2Dr15ClipboardHelper17FTransferGvmlDataERN3Art11TransactionERKN3Ofc13TReferringPtrINS_10DrawingE2oEEEbNS4_7TCntPtrI11IDataObjectEERNS_18IClientDataCreatorERNS4_7TVectorINS4_8TWeakPtrINS_14DrawingElementEEELj0ELj4294967295EEERNS1_6Rect64E"
+ },
+ {
+  "mangled": "_ZN4Core9AsyncFile7performEON3WTF1FIFNS2_IFvRNS_10FileClientEEEERNS_4FileEEEE"
+ },
+ {
+  "mangled": "_ZN15LogLevelMonitor27registerKeysChangedCallbackERKN5boost8functionIFvvEEE"
+ },
+ {
+  "mangled": "_ZN9DnsThread32set_mutate_ares_options_callbackERKN5boost8functionIFvP12ares_optionsPiEEE"
+ },
+ {
+  "mangled": "_ZNSt6vectorIN5boost8functionIFvvEEESaIS3_EE13_M_insert_auxEN9__gnu_cxx17__normal_iteratorIPS3_S5_EERKS3_"
+ },
+ {
+  "mangled": "_ZN7WebCore27ContentFilterUnblockHandlerC2EN3WTF6StringENSt3__18functionIFvNS4_IFvbEEEEEE"
+ },
+ {
+  "mangled": "_ZTCN6Crypto10HmacSha256E0_NS_3MacE"
+ },
+ {
+  "mangled": "_Z11testVarArgsiz"
+ },
+ {
+  "mangled": "_ZN12uavcan_stm329CanDriverC1ILj64EEERA2_AT__NS_9CanRxItemE"
+ },
+ {
+  "mangled": "_ZZN9__gnu_cxx6__stoaIlicJiEEET0_PFT_PKT1_PPS3_DpT2_EPKcS5_PmS9_EN11_Save_errnoC2Ev"
+ },
+ {
+  "mangled": "_ZNK2cc14ScrollSnapTypeneERKS0_"
+ },
+ {
+  "mangled": "__ZN7brigand13for_each_argsIZN7WebCore11JSConverterINS1_8IDLUnionIJNS1_7IDLNullENS1_12IDLDOMStringENS1_21IDLUnrestrictedDoubleEEEEE7convertERN3JSC9ExecStateERNS1_17JSDOMGlobalObjectERKN3WTF7VariantIJDnNSE_6StringEdEEEEUlOT_E_JNS_5type_INSt3__117integral_constantIlLl0EEEEENSN_INSP_IlLl1EEEEENSN_INSP_IlLl2EEEEEEEESK_SK_DpOT0_"
+ },
+ {
+  "mangled": "__ZN7WebCore22FontSelectionAlgorithm16filterCapabilityEPbMS0_KFNS0_14DistanceResultENS_25FontSelectionCapabilitiesEEMS3_NS_18FontSelectionRangeE"
+ },
+ {
+  "mangled": "_ZN8JsonUtil9addMemberISt10shared_ptrINS_20JsonSchemaObjectNodeINS_10EmptyClassEN14AvoidBlockGoal10DefinitionEEEES5_fEEODaT_MT0_T1_PKcRKSC_"
+ },
+ {
+  "mangled": "__ZN7WebCore12TextCodecICU14registerCodecsEPFvPKcON3WTF8FunctionIFNSt3__110unique_ptrINS_9TextCodecENS5_14default_deleteIS7_EEEEvEEEE"
+ },
+ {
+  "mangled": "__ZN3WTF15__visit_helper2ILl1ELm1EJEE7__visitINS_7VisitorIZNKS_17TextBreakIterator9followingEjEUlRKT_E_JEEEJRKNS_7VariantIJNS_20TextBreakIteratorICUENS_19TextBreakIteratorCFEEEEEEENS_27__multi_visitor_return_typeIS5_JDpT0_EE6__typeERS5_DpOSH_"
+ },
+ {
+  "mangled": "__ZN3WTF8FunctionIFvvEEaSIZN7WebCore9IDBClient24TransactionOperationImplIJRKNS4_18IDBObjectStoreInfoEEEC1ERNS4_14IDBTransactionEMSB_FvRKNS4_13IDBResultDataEEMSB_FvRNS5_20TransactionOperationES9_ES9_EUlvE_vEERS2_OT_"
+ },
+ {
+  "mangled": "_ZN12LayerDetails15RandomProviderTIZNKS_9LayerBase10initRandomEllEUlRljE_EclIiLm2EEET_RAT0__KS6_"
+ },
+ {
+  "mangled": "_ZN3WTF6VectorINS_9RetainPtrI29AVAssetResourceLoadingRequestEELm0ENS_15CrashOnOverflowELm16ENS_10FastMallocEE17removeAllMatchingIZNS6_9removeAllIPS2_EEjRKT_EUlRKS3_E_EEjSC_m"
+ },
+ {
+  "mangled": "_ZN3JSC9Structure3addILNS0_9ShouldPinE1EZNS_8JSObject35prepareToPutDirectWithoutTransitionERNS_2VMENS_12PropertyNameEjjPS0_EUlRKNS_24GCSafeConcurrentJSLockerEiiE_EEiS5_S6_jRKT0_"
+ },
+ {
+  "mangled": "_ZZN12GrGLFunctionIFPKhjEEC1IZN13skia_bindings28CreateGLES2InterfaceBindingsEPN3gpu5gles214GLES2InterfaceEPNS6_14ContextSupportEE3$_0EET_ENUlPKvjE_8__invokeESF_j"
+ },
+ {
+  "mangled": "_ZN13SoloGimbalEKFUt_C2Ev"
+ },
+ {
+  "mangled": "_Z11wrap_360_cdIiEDTcl8wrap_360fp_Lf42c80000EEET_"
+ },
+ {
+  "mangled": "_ZTAXtlN9envHelper13StringLiteralILm38EEEtlA38_cLc67ELc111ELc114ELc101ELc65ELc117ELc100ELc105ELc111ELc95ELc67ELc97ELc112ELc116ELc117ELc114ELc101ELc67ELc111ELc110ELc118ELc101ELc114ELc116ELc101ELc114ELc67ELc104ELc97ELc105ELc110ELc95ELc73ELc110ELc112ELc117ELc116EEEE"
+ },
+ {
+  "mangled": "_ZNSt3__119__allocate_at_leastB7v160006INS_9allocatorINS_10unique_ptrIvN10applesauce4raii2v16detail23opaque_deletion_functorIPvXadL_Z27VPTimeFreqConverter_DisposeEEEEEEEEEENS_19__allocation_resultINS_16allocator_traitsIT_E7pointerEEERSE_m"
+ },
+ {
+  "mangled": "_Z6calleei.cold"
+ },
+ {
+  "mangled": "_ZN6ghidra15ContextInternal9FreeArrayaSERKS1_.cold"
+ },
+ {
+  "mangled": "_ZN7Greeter5greetENSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE"
+ },
+ {
+  "mangled": "_ZTIN6AP_HAL3HAL9CallbacksE"
+ },
+ {
+  "mangled": "_ZTSN6AP_HAL3HAL9CallbacksE"
+ },
+ {
+  "mangled": "_ZN43_$LT$char$u20$as$u20$core..fmt..Display$GT$3fmt17h31c4c24bbd08aa24E"
+ },
+ {
+  "mangled": "_ZN4core6option13expect_failed17h09b982639336e7eaE"
+ },
+ {
+  "mangled": "_ZN4core3fmt9Formatter15debug_lower_hex17heb5fb064687c1b3cE"
+ },
+ {
+  "mangled": "_ZN3std4path10Components7as_path17h3cc3e688e3107704E"
+ },
+ {
+  "mangled": "_ZN5alloc5alloc18handle_alloc_error8rt_error17h4b79f8a717741b7cE"
+ },
+ {
+  "mangled": "_ZN3std6thread7current17h20e47a880e55afd5E"
+ },
+ {
+  "mangled": "_ZN151_$LT$alloc..boxed..Box$LT$alloc..boxed..FnBox$LT$A$C$$u20$Output$u3d$R$GT$$u20$$u2b$$u20$$u27$a$GT$$u20$as$u20$core..ops..function..FnOnce$LT$A$GT$$GT$9call_once17h69e8f44b3723e1caE"
+ },
+ {
+  "mangled": "_ZN88_$LT$core..result..Result$LT$$u21$$C$$u20$E$GT$$u20$as$u20$std..process..Termination$GT$6report17hfc41d0da4a40b3e8E"
+ },
+ {
+  "mangled": "_ZN3foo3bar3bazE"
+ },
+ {
+  "mangled": "_ZN7unicode12$u2202$valueE"
+ },
+ {
+  "mangled": "_ZTV11UniqueSpace"
+ }
+]
