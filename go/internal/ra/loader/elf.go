@@ -559,7 +559,9 @@ func elfSpecific(f *elf.File, p *Program, bias uint64) {
 			if !ok || t == 0 || t == ^uint64(0) || !p.Memory.IsExecutable(t) {
 				continue
 			}
-			if _, ok := p.FallbackNames[t]; !ok {
+			// Only dynamic ELFs get the _INIT_n names; Ghidra leaves FUN_ names
+			// on static binaries.
+			if _, ok := p.FallbackNames[t]; !ok && f.Section(".dynamic") != nil {
 				p.FallbackNames[t] = fmt.Sprintf("%s_%d", prefix, index)
 			}
 			index++
