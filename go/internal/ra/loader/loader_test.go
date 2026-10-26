@@ -157,9 +157,6 @@ func TestTLSOverlapKeepsInitArray(t *testing.T) {
 			t.Errorf("%s block missing", n)
 		}
 	}
-	if p.FallbackNames[0x401001] != "_INIT_0" || p.FallbackNames[0x401002] != "_FINI_0" {
-		t.Errorf("fallback names %v", p.FallbackNames)
-	}
 	if p.Seeds[0x401001] != SeedInitArray || !p.EntryPoints[0x401001] || p.MarkedPointers[0x403000] != 0x401001 {
 		t.Errorf("init array not marked up: seeds %v", p.Seeds)
 	}
@@ -182,6 +179,32 @@ func TestRustDetectedFromComment(t *testing.T) {
 		}, nil)
 		if got := load(t, img, "").IsRust; got != c.want {
 			t.Errorf("comment %q: IsRust = %v, want %v", c.comment, got, c.want)
+		}
+	}
+}
+
+// Ghidra names init_array targets _INIT_n only in dynamic ELFs; a static
+// binary keeps FUN_ names, but the entries are still seeds.
+func TestInitArrayNamesNeedDynamic(t *testing.T) {
+	for _, dyn := range []bool{false, true} {
+		secs := []tsec{
+			{name: ".text", typ: elf.SHT_PROGBITS, flags: alloc | exec, addr: 0x401000, data: []byte{0xc3, 0x90, 0xc3}},
+			{name: ".init_array", typ: elf.SHT_INIT_ARRAY, flags: alloc | wr, addr: 0x403000, data: le64(0x401001)},
+			{name: ".fini_array", typ: elf.SHT_FINI_ARRAY, flags: alloc | wr, addr: 0x403008, data: le64(0x401002)},
+		}
+		if dyn {
+			secs = append(secs, tsec{name: ".dynamic", typ: elf.SHT_DYNAMIC, flags: alloc | wr, addr: 0x403010, data: make([]byte, 16)})
+		}
+		p := load(t, mkELF(elf.ET_EXEC, 0x401000, secs, nil), "")
+		_, named := p.FallbackNames[0x401001]
+		if named != dyn {
+			t.Errorf("dynamic=%v: fallback names %v", dyn, p.FallbackNames)
+		}
+		if dyn && (p.FallbackNames[0x401001] != "_INIT_0" || p.FallbackNames[0x401002] != "_FINI_0") {
+			t.Errorf("fallback names %v", p.FallbackNames)
+		}
+		if p.Seeds[0x401001] != SeedInitArray || p.Seeds[0x401002] != SeedInitArray {
+			t.Errorf("dynamic=%v: seeds %v", dyn, p.Seeds)
 		}
 	}
 }
