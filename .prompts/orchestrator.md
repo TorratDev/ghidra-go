@@ -16,19 +16,26 @@ After Platform, ask the user in plain text: "Which epic number do you want to ru
 
 Do not read issues or progress files until you have an epic number.
 
-## Tabs
+## Roles
 
-Each role has its own tab in the epic workspace. Extra sessions of the same role go in extra panes inside that role's tab, not in extra tabs.
+Each role has one tab in the epic workspace. A role that needs more than one session gets more panes inside its own tab. It never gets a second tab.
 
-Tabs:
-- orchestrator: this session only
-- investigators: up to three panes (A, B, C)
-- executors: up to three panes (1, 2, 3)
-- reviewer: one pane
+| Role | Tab label | Panes | Pane names | Model |
+|------|-----------|-------|------------|-------|
+| orchestrator | orchestrator | this session only | none | none |
+| investigator | investigators | up to 3 (A, B, C) | investigator-a, investigator-b, investigator-c | claude-haiku-5-5 |
+| executor | executors | up to 3 (1, 2, 3) | executor-1, executor-2, executor-3 | claude-haiku-5-5 |
+| reviewer | reviewer | 1 by default | reviewer, then reviewer-2, reviewer-3 if the user asks | claude-opus-5-5 |
+
+- Executors are interchangeable. Each runs one task at a time in its own worktree.
+- Investigators are shared. Each takes a share of one sub-issue's points.
+- To duplicate any role, add a pane to its tab and start the role there with the next name. The table caps the panes. Go past the cap only when the user asks.
+
+## Tab and pane setup
 
 1. Identify your pane and workspace:
    herdr pane current
-   Note your pane ID (SELF), its workspace ID (WS), and its tab ID (ORCH_TAB).
+   Note your pane ID (SELF), its workspace ID (WS), and its tab ID (ORCH_TAB). Its ID must equal SELF. If it doesn't, stop and report to the user.
 
 2. Make sure the workspace is labeled for this epic:
    herdr workspace get <WS>
@@ -36,15 +43,15 @@ Tabs:
 
 3. Label your own tab: herdr tab rename <ORCH_TAB> orchestrator
 
-4. Find or create the role tabs:
+4. Find or create each role tab that the batch needs:
    herdr tab list --workspace <WS>
-   For each of investigators, executors, and reviewer that has no tab yet, run:
-   herdr tab create --workspace <WS> --label <role> --no-focus
-   The output's root_pane.pane_id is that tab's first pane. Note it.
+   If a role has no tab yet, run:
+   herdr tab create --workspace <WS> --label <tab label> --no-focus
+   The output's root_pane.pane_id is that tab's first pane. Note it as the role's LAST_PANE.
 
-5. Add panes only as the next batch needs them. Investigators need up to three, executors up to three, the reviewer one. To add a pane to a role tab, split the last pane in that tab:
+5. Add panes to a role tab only when the next batch needs them. Split the role's LAST_PANE:
    herdr pane split <LAST_PANE> --direction right
-   The output's pane_id is the new pane. Use that ID as the new LAST_PANE.
+   The output's pane_id is the new pane. Use that ID as the new LAST_PANE. Panes fill left to right, so the first pane is pane 1 (A, 1, or reviewer).
 
 6. Always take pane IDs from the most recent output or list. Never reuse an ID from an earlier list.
 
@@ -52,26 +59,15 @@ Tabs:
 
 8. Splitting panes is allowed. Closing them is not. Never close your pane or any pane that runs a Claude session.
 
-## Role assignment
-
-- Orchestrator: SELF, this session.
-- Investigators tab, left to right: A, B, C.
-- Executors tab, left to right: executor 1, 2, 3. They are interchangeable. Each runs one task at a time in its own worktree.
-- Reviewer tab: its only pane.
-
-Run herdr pane current. Its ID must equal SELF. If it doesn't, stop and report to the user.
-
 ## Session management
-
-Models. Always pass them explicitly:
-- Investigators: claude-haiku-5-5
-- Executors (1 to 3): claude-haiku-5-5
-- Reviewer: claude-opus-5-5
 
 Rules:
 - Start a role only in an empty shell pane. Check with herdr pane read <pane> --source recent --lines 15 first. If it shows a Claude session or a running task, do not send input.
-- Name each role's pane so SendMessage can reach it: investigator-a, investigator-b, investigator-c, executor-1, executor-2, executor-3, reviewer.
-- Use exactly these commands. On Linux:
+- Start a session only when you are about to use it. Start the reviewer once its tab exists. Start only as many executors as the batch needs.
+- Never open sessions outside the role tabs.
+- After starting a session, read the pane and confirm the header shows the expected model. If it doesn't, stop and report.
+
+Start commands. Pass the model explicitly. On Linux:
   herdr pane run <pane> "~/start-role.sh -Role investigator -Name investigator-<a|b|c> -Model claude-haiku-5-5"
   herdr pane run <pane> "~/start-role.sh -Role executor -Name executor-<1|2|3> -Model claude-haiku-5-5"
   herdr pane run <pane> "~/start-role.sh -Role reviewer -Name reviewer -Model claude-opus-5-5"
@@ -79,9 +75,8 @@ Rules:
   herdr pane run <pane> "& C:\Users\Troll\start-role.ps1 -Role investigator -Model claude-haiku-5-5"
   herdr pane run <pane> "& C:\Users\Troll\start-role.ps1 -Role executor -Model claude-haiku-5-5"
   herdr pane run <pane> "& C:\Users\Troll\start-role.ps1 -Role reviewer -Model claude-opus-5-5"
-- After starting a role, read the pane and confirm the header shows the expected model. If it doesn't, stop and report.
-- Start investigators and executors only when you are about to dispatch them, and only as many executors as the batch needs (at most three). Start the reviewer once its tab exists.
-- Never open sessions outside the role tabs.
+
+Use these commands exactly. For a duplicate, use the next name from the table, for example -Name reviewer-2. Name each pane so SendMessage can reach it.
 
 ## Dispatch to investigators
 
