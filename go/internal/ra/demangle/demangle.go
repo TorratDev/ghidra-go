@@ -1,7 +1,8 @@
 // Package demangle is the Go port of the GNU and Rust parts of
 // rust-analysis/crates/ra-demangle: demanglers with Ghidra 12.1.4's naming
 // rules. Each scheme yields what Ghidra's demangler of the same name yields,
-// a leaf name and a namespace path. MSVC is not ported (follow-up #17).
+// a leaf name and a namespace path. MSVC is a partial port of Ghidra's
+// MicrosoftDemangler (MDMang), see msvc.go.
 package demangle
 
 import "strings"
@@ -11,12 +12,16 @@ type Scheme int
 const (
 	Gnu Scheme = iota
 	Rust
+	Msvc
 )
 
 // GhidraClass is the Ghidra demangler class a scheme mirrors.
 func (s Scheme) GhidraClass() string {
-	if s == Rust {
+	switch s {
+	case Rust:
 		return "RustDemangler"
+	case Msvc:
+		return "MicrosoftDemangler"
 	}
 	return "GnuDemangler"
 }
@@ -43,20 +48,26 @@ func (d *Demangled) NamespaceString() *string {
 
 // Demangle demangles with the scheme Ghidra would pick: Rust first when
 // rustProgram is set (RustDemanglerAnalyzer only runs on Rust programs),
-// otherwise GNU.
+// MSVC for "?" symbols, otherwise GNU.
 func Demangle(mangled string, rustProgram bool) *Demangled {
 	if rustProgram {
 		if d := DemangleRust(mangled); d != nil {
 			return d
 		}
 	}
+	if strings.HasPrefix(mangled, "?") {
+		return DemangleMsvc(mangled)
+	}
 	return DemangleGnu(mangled)
 }
 
 // DemangleWith runs one specific scheme, like calling one Ghidra demangler class.
 func DemangleWith(s Scheme, mangled string) *Demangled {
-	if s == Rust {
+	switch s {
+	case Rust:
 		return DemangleRust(mangled)
+	case Msvc:
+		return DemangleMsvc(mangled)
 	}
 	return DemangleGnu(mangled)
 }
