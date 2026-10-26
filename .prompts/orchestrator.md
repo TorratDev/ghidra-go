@@ -12,53 +12,46 @@ Do not read issues or progress files until you have an epic number.
 
 ## Panes
 
-Your session is the top-left pane of the grid. Build the grid around it. Do not create a new workspace.
+Each role has its own tab in the epic workspace. Extra sessions of the same role go in extra panes inside that role's tab, not in extra tabs.
+
+Tabs:
+- orchestrator: this session only
+- investigators: up to three panes (A, B, C)
+- executors: up to three panes (1, 2, 3)
+- reviewer: one pane
 
 1. Identify your pane and workspace:
    herdr pane current
-   Note your pane ID (SELF) and its workspace ID (WS).
+   Note your pane ID (SELF), its workspace ID (WS), and its tab ID (ORCH_TAB).
 
 2. Make sure the workspace is labeled for this epic:
    herdr workspace get <WS>
    If the label is not epic-<EPIC>, run: herdr workspace rename <WS> epic-<EPIC>
 
-3. Check for existing panes:
-   herdr pane list --workspace <WS>
-   If the workspace already has eight panes, use them and go to Role assignment.
+3. Label your own tab: herdr tab rename <ORCH_TAB> orchestrator
 
-4. Otherwise build the grid from SELF:
-   a. herdr pane split <SELF> --direction right
-      Run herdr pane list --workspace <WS> and take the new pane ID. Call it MIDDLE.
-   b. herdr pane split <MIDDLE> --direction right
-      Run herdr pane list --workspace <WS> and take the new pane ID. Call it RIGHT.
-   c. herdr pane split <SELF> --direction down
-      herdr pane split <MIDDLE> --direction down
-      herdr pane split <RIGHT> --direction down
-   d. Add two more executor panes under the bottom-middle pane (EXEC1):
-      herdr pane split <EXEC1> --direction down
-      Run herdr pane list --workspace <WS> and take the new pane ID. Call it EXEC2.
-      herdr pane split <EXEC2> --direction down
-      Run herdr pane list --workspace <WS> and take the new pane ID. Call it EXEC3.
-   e. Run herdr pane list --workspace <WS> and record the eight pane IDs.
+4. Find or create the role tabs:
+   herdr tab list --workspace <WS>
+   For each of investigators, executors, and reviewer that has no tab yet, run:
+   herdr tab create --workspace <WS> --label <role> --no-focus
+   The output's root_pane.pane_id is that tab's first pane. Note it.
 
-5. Always take pane IDs from the most recent list. Never reuse an ID from an earlier list.
+5. Add panes only as the next batch needs them. Investigators need up to three, executors up to three, the reviewer one. To add a pane to a role tab, split the last pane in that tab:
+   herdr pane split <LAST_PANE> --direction right
+   The output's pane_id is the new pane. Use that ID as the new LAST_PANE.
 
-6. Never run herdr workspace create unless the user explicitly asks for a new workspace.
+6. Always take pane IDs from the most recent output or list. Never reuse an ID from an earlier list.
 
-7. Splitting your own pane is allowed. Closing it is not. Never close your pane or any pane that runs a Claude session.
+7. Never run herdr workspace create unless the user explicitly asks for a new workspace.
+
+8. Splitting panes is allowed. Closing them is not. Never close your pane or any pane that runs a Claude session.
 
 ## Role assignment
 
-Grid positions:
-- Top-left (SELF): orchestrator, this session
-- Top-middle (MIDDLE): investigator A
-- Top-right (RIGHT): investigator B
-- Bottom-left: investigator C
-- Bottom-middle (EXEC1): executor 1
-- Middle column, below EXEC1 (EXEC2, EXEC3): executors 2 and 3
-- Bottom-right: reviewer
-
-Executors 1 to 3 are interchangeable. Each runs one task at a time in its own worktree.
+- Orchestrator: SELF, this session.
+- Investigators tab, left to right: A, B, C.
+- Executors tab, left to right: executor 1, 2, 3. They are interchangeable. Each runs one task at a time in its own worktree.
+- Reviewer tab: its only pane.
 
 Run herdr pane current. Its ID must equal SELF. If it doesn't, stop and report to the user.
 
@@ -76,8 +69,8 @@ Rules:
   herdr pane run <pane> "& C:\Users\Troll\start-role.ps1 -Role executor -Model claude-haiku-5-5"
   herdr pane run <pane> "& C:\Users\Troll\start-role.ps1 -Role reviewer -Model claude-opus-5-5"
 - After starting a role, read the pane and confirm the header shows the expected model. If it doesn't, stop and report.
-- Start investigators and executors only when you are about to dispatch them, and only as many executors as the batch needs (at most three). Start the reviewer once the grid exists.
-- Never open sessions outside these eight panes.
+- Start investigators and executors only when you are about to dispatch them, and only as many executors as the batch needs (at most three). Start the reviewer once its tab exists.
+- Never open sessions outside the role tabs.
 
 ## Dispatch to investigators
 
