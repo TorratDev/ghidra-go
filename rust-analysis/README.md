@@ -54,7 +54,7 @@ CI (`.github/workflows/rust-analysis.yml`) runs the offline gate, and also a liv
 
 These are measured by the differential report and listed in `PARITY.md`:
 
-- **MSVC demangling:** 53% names.txt recall (the floor in `compare/thresholds.toml`; the corpus DLLs match 100%). The `msvc-demangler` crate can't parse many exotic forms. The Go port of MDMang in `go/internal/ra/demangle` is partial: 221 of 1484 oracle names match at 100% precision, and templates, operators and `$` modifiers are not ported yet (#17).
+- **MSVC demangling:** 406/1657 (24.5%) full-text on the MDMang vectors, and 53% names.txt name recall (the floor in `compare/thresholds.toml`; the corpus DLLs match 100%). The `msvc-demangler` crate can't parse many exotic forms. The Go port of MDMang in `go/internal/ra/demangle` is partial: 244 of 1484 oracle names match at 100% precision, and templates, operators and `$` modifiers are not ported yet (#17).
 - **Function-wide constant propagation (M3):** propagation is block-local here, so references through registers set in other blocks are missed.
 - **Jump tables:** recovery covers the x86 absolute and relative idioms. AArch64 and other architectures come in M3.
 - **Static glibc internals:** IFUNC resolvers and libc-internal thunks and no-return functions differ.

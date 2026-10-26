@@ -1,102 +1,185 @@
 package demangle
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
-// typ parses one type: a basic type, a pointer or reference with its
-// modifiers, an array, a class, struct, union or enum name, or a function
-// pointer. Type backreferences (digits) consume one character; the type table
-// they index is only needed for rendering argument types, which names do not
-// use.
-func (p *msvcParser) typ() error {
+// msvcBasicTypes are the single-letter basic types, spelled as MDMang prints
+// them.
+var msvcBasicTypes = map[byte]string{
+	'C': "signed char", 'D': "char", 'E': "unsigned char",
+	'F': "short", 'G': "unsigned short", 'H': "int", 'I': "unsigned int",
+	'J': "long", 'K': "unsigned long", 'M': "float", 'N': "double",
+	'O': "long double", 'X': "void",
+}
+
+// msvcUnderscoreTypes are the basic types written as '_' and a letter.
+var msvcUnderscoreTypes = map[byte]string{
+	'J': "__int64", 'K': "unsigned __int64", 'N': "bool", 'W': "wchar_t",
+}
+
+// msvcCallingConventions are the calling conventions MDMang prints.
+var msvcCallingConventions = map[byte]string{
+	'A': "__cdecl", 'B': "__cdecl", 'C': "__pascal", 'E': "__thiscall",
+	'G': "__stdcall", 'I': "__fastcall",
+}
+
+// msvcCVQualifiers are the qualifiers on a pointee, written after its type.
+var msvcCVQualifiers = map[byte]string{
+	'A': "", 'B': " const", 'C': " volatile", 'D': " const volatile",
+}
+
+// mdDataTypeParser ports MDDataTypeParser: it parses one type and returns its
+// MDMang spelling, such as "int", "unsigned char const *" or "class std::foo".
+// Digits 0-9 refer to the type table and $0-$9 to the template argument table.
+func (p *msvcParser) mdDataTypeParser() (string, error) {
 	if p.positionStartsWith("$$BY") {
 		p.i += len("$$BY")
-		return p.array()
+		return p.mdArray()
 	}
 	c := p.next()
 	switch {
-	case c >= '0' && c <= '9', strings.IndexByte("CDEFGHIJKLMNX", c) >= 0:
-		return nil
-	case c == 'Y':
-		return p.array()
-	case c == '_':
-		if strings.IndexByte("JKNW", p.next()) < 0 {
-			return errMsvc
+	case isDigit(c):
+		idx := int(c - '0')
+		if idx >= len(p.types) {
+			return "", errMsvc
 		}
-		return nil
-	case c == 'P' || c == 'Q' || c == 'R' || c == 'A':
-		p.take('E') // 64-bit pointer
-		if !strings.ContainsRune("ABCD", rune(p.next())) {
-			return errMsvc
-		}
-		return p.typ()
-	case c == 'V' || c == 'U' || c == 'T':
-		_, err := p.qualifiedName()
-		return err
-	case c == 'W':
-		if p.next() != '4' {
-			return errMsvc
-		}
-		_, err := p.qualifiedName()
-		return err
-	case c == '6':
-		return p.functionType()
-	}
-	return errMsvc
-}
-
-// functionType parses a function type after its '6' marker: the calling
-// convention, the return type, and the arguments.
-func (p *msvcParser) functionType() error {
-	if !strings.ContainsRune("ABCEGI", rune(p.next())) {
-		return errMsvc
-	}
-	if err := p.returnType(); err != nil {
-		return err
-	}
-	return p.args()
-}
-
-// array parses an array type after its 'Y' or "$$BY": the dimension count, each
-// dimension, and the element type.
-func (p *msvcParser) array() error {
-	dims, err := p.number()
-	if err != nil {
-		return err
-	}
-	if dims > 16 {
-		return errMsvc
-	}
-	for ; dims > 0; dims-- {
-		if _, err := p.number(); err != nil {
-			return err
-		}
-	}
-	return p.typ()
-}
-
-// number parses an MSVC number: a digit is its value plus one, and 'A'-'P'
-// digits followed by '@' spell a hexadecimal value.
-func (p *msvcParser) number() (int, error) {
-	c := p.next()
-	if c >= '0' && c <= '9' {
-		return int(c-'0') + 1, nil
-	}
-	if c < 'A' || c > 'P' {
-		return 0, errMsvc
-	}
-	v := int(c - 'A')
-	for {
+		return p.types[idx], nil
+	case c == '$':
 		c = p.next()
-		if c == '@' {
-			return v, nil
+		if !isDigit(c) || int(c-'0') >= len(p.templateArgs) {
+			return "", errMsvc
 		}
-		if c < 'A' || c > 'P' || v > 1<<20 {
-			return 0, errMsvc
-		}
-		v = v*16 + int(c-'A')
+		return p.templateArgs[c-'0'], nil
 	}
+	if t, ok := msvcBasicTypes[c]; ok {
+		return t, nil
+	}
+	switch c {
+	case 'Y':
+		return p.mdArray()
+	case '_':
+		if t, ok := msvcUnderscoreTypes[p.next()]; ok {
+			return t, nil
+		}
+	case 'P', 'Q', 'R', 'A':
+		return p.mdPointer(c)
+	case 'T':
+		return p.mdNamedType("union")
+	case 'U':
+		return p.mdNamedType("struct")
+	case 'V':
+		return p.mdNamedType("class")
+	case 'W':
+		if p.next() == '4' {
+			return p.mdNamedType("enum")
+		}
+	case '6':
+		return p.mdFunctionType()
+	}
+	return "", errMsvc
 }
 
-func (p *msvcParser) positionStartsWith(s string) bool {
-	return p.i <= len(p.s) && strings.HasPrefix(p.s[p.i:], s)
+// addType records a composite type in the type table, once, for backreferences.
+func (p *msvcParser) addType(text string) {
+	for _, t := range p.types {
+		if t == text {
+			return
+		}
+	}
+	p.types = append(p.types, text)
+}
+
+// mdPointer parses a pointer or reference. The letter gives the kind (P plain,
+// Q const, R volatile, A reference), then comes the pointee's cv qualifier and
+// the pointee. A pointer to a function has no cv letter: "P6".
+func (p *msvcParser) mdPointer(kind byte) (string, error) {
+	ptr64 := p.take('E') // 64-bit pointer; not rendered
+	if kind == 'P' && !ptr64 && p.take('6') {
+		text, err := p.mdFunctionType()
+		if err != nil {
+			return "", err
+		}
+		p.addType(text)
+		return text, nil
+	}
+	qual, ok := msvcCVQualifiers[p.next()]
+	if !ok {
+		return "", errMsvc
+	}
+	pointee, err := p.mdDataTypeParser()
+	if err != nil {
+		return "", err
+	}
+	suffix := map[byte]string{'P': " *", 'Q': " * const", 'R': " * volatile", 'A': " &"}[kind]
+	text := pointee + qual + suffix
+	p.addType(text)
+	return text, nil
+}
+
+// mdNamedType parses a class, struct, union or enum name after its keyword.
+func (p *msvcParser) mdNamedType(keyword string) (string, error) {
+	name, err := p.mdQualifiedName()
+	if err != nil {
+		return "", err
+	}
+	text := keyword + " " + name.String()
+	p.addType(text)
+	return text, nil
+}
+
+// mdArray parses an array after its 'Y' or "$$BY": the dimension count, each
+// dimension, and the element type. It is spelled "elem [d1] [d2]".
+func (p *msvcParser) mdArray() (string, error) {
+	count, err := p.mdEncodedNumber()
+	if err != nil {
+		return "", err
+	}
+	if count > 16 {
+		return "", errMsvc
+	}
+	dims := make([]int, count)
+	for i := range dims {
+		if dims[i], err = p.mdEncodedNumber(); err != nil {
+			return "", err
+		}
+	}
+	elem, err := p.mdDataTypeParser()
+	if err != nil {
+		return "", err
+	}
+	text := elem
+	for _, d := range dims {
+		text += fmt.Sprintf(" [%d]", d)
+	}
+	p.addType(text)
+	return text, nil
+}
+
+// mdFunctionType parses a function type after its '6' marker and returns its
+// spelling as a pointer to the function: "int (__cdecl*)(int)".
+func (p *msvcParser) mdFunctionType() (string, error) {
+	cc, ok := msvcCallingConventions[p.next()]
+	if !ok {
+		return "", errMsvc
+	}
+	ret, err := p.returnType()
+	if err != nil {
+		return "", err
+	}
+	args, err := p.mdArgumentsList()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s (%s*)(%s)", ret, cc, strings.Join(args, ", ")), nil
+}
+
+// returnType parses a return type and returns its spelling. '@' stands for
+// void, which is how constructors and destructors are encoded.
+func (p *msvcParser) returnType() (string, error) {
+	if p.take('@') {
+		return "void", nil
+	}
+	return p.mdDataTypeParser()
 }

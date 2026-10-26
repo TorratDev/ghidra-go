@@ -7,10 +7,10 @@ import (
 
 // DemangleMsvc is stage 1 of the MicrosoftDemangler (MDMang) port. It parses
 // the MSVC symbol grammar subset that names come from: qualified names with
-// name backreferences, constructors and destructors, global and member
-// functions, static data, and basic, pointer, reference, array and class
-// types. It returns nil for any other encoding (templates, operators, '$'
-// modifiers, member pointers, thunks) rather than guessing a name.
+// name backreferences, constructors and destructors, global, member and static
+// functions, static data, and basic, pointer, reference, array, class and
+// function types. It returns nil for any other encoding (templates, operators,
+// '$' modifiers, member pointers, thunks) rather than guessing a name.
 func DemangleMsvc(mangled string) *Demangled {
 	p := &msvcParser{s: mangled}
 	d, err := p.symbol()
@@ -22,13 +22,19 @@ func DemangleMsvc(mangled string) *Demangled {
 
 var errMsvc = errors.New("msvc: unsupported encoding")
 
-// msvcParser is the MDMang driver state: the input and the position in it.
-// names is the name table that backreferences 0-9 index: each new name
-// component is appended in the order it is parsed, innermost first.
+// msvcParser is the MDMang driver state: the input and the position in it,
+// and the three tables that backreferences index.
 type msvcParser struct {
-	s     string
-	i     int
+	s string
+	i int
+	// names is the name table for backreferences 0-9 in qualified names.
 	names []string
+	// types is the type table for backreferences 0-9 in types: the spelling of
+	// each distinct composite type, in the order it was first parsed.
+	types []string
+	// templateArgs is the table for $0-$9 backreferences. Only template
+	// argument lists fill it, so outside a template these fail.
+	templateArgs []string
 }
 
 func (p *msvcParser) peek() byte {
@@ -52,6 +58,14 @@ func (p *msvcParser) take(c byte) bool {
 	return false
 }
 
+func (p *msvcParser) positionStartsWith(s string) bool {
+	return p.i <= len(p.s) && strings.HasPrefix(p.s[p.i:], s)
+}
+
+func isDigit(c byte) bool {
+	return c >= '0' && c <= '9'
+}
+
 // symbol parses the whole symbol. Constructors and destructors come in as
 // "??0" and "??1"; their namespace keeps the class name as the last element.
 func (p *msvcParser) symbol() (*Demangled, error) {
@@ -65,18 +79,18 @@ func (p *msvcParser) symbol() (*Demangled, error) {
 			return nil, errMsvc
 		}
 	}
-	scope, err := p.qualifiedName()
+	name, err := p.mdQualifiedName()
 	if err != nil {
 		return nil, err
 	}
-	// scope is innermost first; the leaf is scope[0].
+	scope := name.parts // innermost first; the leaf is scope[0]
 	d := &Demangled{Scheme: Msvc, Name: scope[0]}
 	kind := p.next()
 	switch {
 	case xtor != 0 && (hasThis(kind) || kind == 'S'):
 		// A constructor or destructor is named after its class, and the
 		// namespace keeps the class as its last element.
-		d.Namespace = reverse(scope)
+		d.Namespace = name.outermost()
 		if xtor == '1' {
 			d.Name = "~" + scope[0]
 		}
@@ -88,11 +102,11 @@ func (p *msvcParser) symbol() (*Demangled, error) {
 		d.IsFunction = true
 		return d, p.function('Y')
 	case (hasThis(kind) || kind == 'S') && len(scope) > 1:
-		d.Namespace = reverse(scope[1:])
+		d.Namespace = name.outermost()[:len(scope)-1]
 		d.IsFunction = true
 		return d, p.function(kind)
 	case kind == '3' && len(scope) == 1:
-		if err := p.typ(); err != nil {
+		if _, err := p.mdDataTypeParser(); err != nil {
 			return nil, err
 		}
 		if !p.take('A') && !p.take('B') {
@@ -123,108 +137,9 @@ func (p *msvcParser) function(kind byte) error {
 	if !strings.ContainsRune("ABCEGI", rune(p.next())) {
 		return errMsvc
 	}
-	if err := p.returnType(); err != nil {
+	if _, err := p.returnType(); err != nil {
 		return err
 	}
-	return p.args()
-}
-
-// returnType parses a return type, where '@' stands for void (constructors and
-// destructors are encoded that way).
-func (p *msvcParser) returnType() error {
-	if p.take('@') {
-		return nil
-	}
-	return p.typ()
-}
-
-// args parses the parameter list and its 'Z' terminator. A lone 'X' is the
-// void list; otherwise '@' ends the list.
-func (p *msvcParser) args() error {
-	if p.take('X') {
-		if !p.take('Z') {
-			return errMsvc
-		}
-		return nil
-	}
-	for {
-		switch p.peek() {
-		case '@':
-			p.i++
-			if !p.take('Z') {
-				return errMsvc
-			}
-			return nil
-		case 'Z':
-			p.i++
-			return nil
-		}
-		if err := p.typ(); err != nil {
-			return err
-		}
-	}
-}
-
-// qualifiedName parses name components up to the empty component that closes
-// the list. A simple name is closed by '@'; a backreference stands alone. It
-// returns the components innermost first.
-func (p *msvcParser) qualifiedName() ([]string, error) {
-	var scope []string
-	for !p.take('@') {
-		backref := p.peek() >= '0' && p.peek() <= '9'
-		name, err := p.component()
-		if err != nil {
-			return nil, err
-		}
-		if !backref && !p.take('@') {
-			return nil, errMsvc
-		}
-		scope = append(scope, name)
-	}
-	if len(scope) == 0 {
-		return nil, errMsvc
-	}
-	return scope, nil
-}
-
-// component parses one name: a backreference to the name table, or a plain
-// identifier that is then added to the table.
-func (p *msvcParser) component() (string, error) {
-	c := p.peek()
-	if c >= '0' && c <= '9' {
-		p.i++
-		idx := int(c - '0')
-		if idx >= len(p.names) {
-			return "", errMsvc
-		}
-		return p.names[idx], nil
-	}
-	start := p.i
-	for isIdent(p.peek()) {
-		p.i++
-	}
-	if p.i == start || !isIdentStart(p.s[start]) {
-		return "", errMsvc
-	}
-	name := p.s[start:p.i]
-	if len(p.names) < 10 {
-		p.names = append(p.names, name)
-	}
-	return name, nil
-}
-
-func isIdentStart(c byte) bool {
-	return c == '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
-}
-
-func isIdent(c byte) bool {
-	return isIdentStart(c) || c >= '0' && c <= '9'
-}
-
-func reverse(in []string) []string {
-	out := make([]string, len(in))
-	for i, s := range in {
-		out[len(in)-1-i] = s
-	}
-	return out
+	_, err := p.mdArgumentsList()
+	return err
 }
