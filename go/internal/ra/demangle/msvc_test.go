@@ -52,6 +52,7 @@ func TestMsvcTypeSpelling(t *testing.T) {
 		{"bool", "_N", "bool"},
 		{"array", "$$BY0IA@H", "int [128]"},
 		{"pointer to function", "P6AHH@Z", "int (__cdecl*)(int)"},
+		{"64-bit pointer", "PEAH", "int * __ptr64"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			p := &msvcParser{s: c.mangled}
@@ -63,24 +64,33 @@ func TestMsvcTypeSpelling(t *testing.T) {
 	}
 }
 
-// A digit in a type refers to the type table filled by earlier types; $0-$9
-// refer to the template argument table, which only a template fills.
+// A digit in a type refers to the type table that mdArgumentsList fills with
+// the top-level argument types.
 func TestMsvcBackreferences(t *testing.T) {
-	p := &msvcParser{s: "PAH0"}
-	if _, err := p.mdDataTypeParser(); err != nil {
+	p := &msvcParser{s: "PAVA@@0@Z"}
+	args, err := p.mdArgumentsList()
+	if err != nil {
 		t.Fatal(err)
 	}
-	if got, err := p.mdDataTypeParser(); err != nil || got != "int *" {
-		t.Errorf("type backref 0: got %q (%v), want %q", got, err, "int *")
+	want := []string{"class A *", "class A *"}
+	if len(args) != 2 || args[0] != want[0] || args[1] != want[1] {
+		t.Errorf("args: got %q, want %q", args, want)
 	}
 
-	p = &msvcParser{s: "$1", templateArgs: []string{"int", "char"}}
-	if got, err := p.mdDataTypeParser(); err != nil || got != "char" {
-		t.Errorf("template backref $1: got %q (%v), want %q", got, err, "char")
-	}
-
-	p = &msvcParser{s: "$0"}
+	p = &msvcParser{s: "0"}
 	if _, err := p.mdDataTypeParser(); err == nil {
-		t.Error("template backref $0 outside a template: want an error")
+		t.Error("type backref 0 with an empty table: want an error")
+	}
+}
+
+// Only the top-level argument kinds named in argBackrefKinds join the table, so
+// a basic argument does not.
+func TestMsvcArgumentTableRule(t *testing.T) {
+	p := &msvcParser{s: "HPAH0@Z"}
+	if _, err := p.mdArgumentsList(); err != nil {
+		t.Fatal(err)
+	}
+	if len(p.types) != 1 || p.types[0] != "int *" {
+		t.Errorf("type table: got %q, want [\"int *\"]", p.types)
 	}
 }

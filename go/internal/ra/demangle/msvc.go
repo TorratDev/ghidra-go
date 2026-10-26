@@ -23,18 +23,15 @@ func DemangleMsvc(mangled string) *Demangled {
 var errMsvc = errors.New("msvc: unsupported encoding")
 
 // msvcParser is the MDMang driver state: the input and the position in it,
-// and the three tables that backreferences index.
+// and the two tables that backreferences index.
 type msvcParser struct {
 	s string
 	i int
 	// names is the name table for backreferences 0-9 in qualified names.
 	names []string
-	// types is the type table for backreferences 0-9 in types: the spelling of
-	// each distinct composite type, in the order it was first parsed.
+	// types is the type table for backreferences 0-9 in types, filled by
+	// mdArgumentsList with the top-level argument types.
 	types []string
-	// templateArgs is the table for $0-$9 backreferences. Only template
-	// argument lists fill it, so outside a template these fail.
-	templateArgs []string
 }
 
 func (p *msvcParser) peek() byte {

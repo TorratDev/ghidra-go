@@ -32,26 +32,19 @@ var msvcCVQualifiers = map[byte]string{
 
 // mdDataTypeParser ports MDDataTypeParser: it parses one type and returns its
 // MDMang spelling, such as "int", "unsigned char const *" or "class std::foo".
-// Digits 0-9 refer to the type table and $0-$9 to the template argument table.
+// A digit 0-9 refers to the type table that mdArgumentsList fills.
 func (p *msvcParser) mdDataTypeParser() (string, error) {
 	if p.positionStartsWith("$$BY") {
 		p.i += len("$$BY")
 		return p.mdArray()
 	}
 	c := p.next()
-	switch {
-	case isDigit(c):
+	if isDigit(c) {
 		idx := int(c - '0')
 		if idx >= len(p.types) {
 			return "", errMsvc
 		}
 		return p.types[idx], nil
-	case c == '$':
-		c = p.next()
-		if !isDigit(c) || int(c-'0') >= len(p.templateArgs) {
-			return "", errMsvc
-		}
-		return p.templateArgs[c-'0'], nil
 	}
 	if t, ok := msvcBasicTypes[c]; ok {
 		return t, nil
@@ -81,28 +74,14 @@ func (p *msvcParser) mdDataTypeParser() (string, error) {
 	return "", errMsvc
 }
 
-// addType records a composite type in the type table, once, for backreferences.
-func (p *msvcParser) addType(text string) {
-	for _, t := range p.types {
-		if t == text {
-			return
-		}
-	}
-	p.types = append(p.types, text)
-}
-
 // mdPointer parses a pointer or reference. The letter gives the kind (P plain,
 // Q const, R volatile, A reference), then comes the pointee's cv qualifier and
-// the pointee. A pointer to a function has no cv letter: "P6".
+// the pointee. A pointer to a function has no cv letter: "P6". The 64-bit
+// marker 'E' renders as " __ptr64".
 func (p *msvcParser) mdPointer(kind byte) (string, error) {
-	ptr64 := p.take('E') // 64-bit pointer; not rendered
+	ptr64 := p.take('E')
 	if kind == 'P' && !ptr64 && p.take('6') {
-		text, err := p.mdFunctionType()
-		if err != nil {
-			return "", err
-		}
-		p.addType(text)
-		return text, nil
+		return p.mdFunctionType()
 	}
 	qual, ok := msvcCVQualifiers[p.next()]
 	if !ok {
@@ -114,7 +93,9 @@ func (p *msvcParser) mdPointer(kind byte) (string, error) {
 	}
 	suffix := map[byte]string{'P': " *", 'Q': " * const", 'R': " * volatile", 'A': " &"}[kind]
 	text := pointee + qual + suffix
-	p.addType(text)
+	if ptr64 {
+		text += " __ptr64"
+	}
 	return text, nil
 }
 
@@ -124,9 +105,7 @@ func (p *msvcParser) mdNamedType(keyword string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	text := keyword + " " + name.String()
-	p.addType(text)
-	return text, nil
+	return keyword + " " + name.String(), nil
 }
 
 // mdArray parses an array after its 'Y' or "$$BY": the dimension count, each
@@ -153,7 +132,6 @@ func (p *msvcParser) mdArray() (string, error) {
 	for _, d := range dims {
 		text += fmt.Sprintf(" [%d]", d)
 	}
-	p.addType(text)
 	return text, nil
 }
 
