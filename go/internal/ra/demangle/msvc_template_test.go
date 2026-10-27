@@ -60,3 +60,25 @@ func TestMsvcTemplateBackrefs(t *testing.T) {
 		})
 	}
 }
+
+// Template arguments of the forms added with the constants and handles. Expected
+// name, namespace and Full are the Ghidra 12.1.4 MicrosoftDemangler results.
+func TestMsvcTemplateArgForms(t *testing.T) {
+	for _, c := range []struct{ mangled, name, ns, full string }{
+		{"?$name1@P$AAVname2@name3@@", "name1<name3::name2_^>", "", "name1<name3::name2_^>"},
+		{"??0?$name0@$$BY02Uname1@@@name2@@QEAA@XZ", "name0<struct_name1_[3]>", "name2::name0<struct_name1_[3]>", ""},
+	} {
+		t.Run(c.mangled, func(t *testing.T) {
+			d := DemangleMsvc(c.mangled)
+			if d == nil {
+				t.Fatalf("%s: no result", c.mangled)
+			}
+			if d.Name != c.name || ns(d) != c.ns {
+				t.Errorf("got name %q ns %q; want %q %q", d.Name, ns(d), c.name, c.ns)
+			}
+			if c.full != "" && d.Full != c.full {
+				t.Errorf("full %q, want %q", d.Full, c.full)
+			}
+		})
+	}
+}
