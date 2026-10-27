@@ -44,6 +44,15 @@ func (p *msvcParser) templateName(bare bool) (text string, empty bool, err error
 // (pointers, digit backreferences, '$' and void) is rejected, not guessed.
 func (p *msvcParser) templateArgs(bare bool) (string, error) {
 	var args []string
+	// add appends an argument. A function type inside one, under a pointer or
+	// a "$$" type, is spelled with the unported spacing, so it is rejected.
+	add := func(t string) error {
+		if strings.Contains(t, "(") {
+			return errMsvc
+		}
+		args = append(args, t)
+		return nil
+	}
 	for {
 		c := p.peek()
 		switch {
@@ -62,14 +71,18 @@ func (p *msvcParser) templateArgs(bare bool) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			args = append(args, strconv.Itoa(v))
+			if err := add(strconv.Itoa(v)); err != nil {
+				return "", err
+			}
 		case c == '$' && p.peek1() == '$':
 			// "$$" types: arrays "$$BY", rvalue references and nullptr, as in the arguments of a function.
 			t, err := p.mdDataTypeParser()
 			if err != nil {
 				return "", err
 			}
-			args = append(args, t)
+			if err := add(t); err != nil {
+				return "", err
+			}
 		case c == '$' && p.peek1() == 'F':
 			// MDTemplateConstant "$F": two signed numbers, "{a,b}".
 			p.i += len("$F")
@@ -81,7 +94,9 @@ func (p *msvcParser) templateArgs(bare bool) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			args = append(args, fmt.Sprintf("{%d,%d}", a, b))
+			if err := add(fmt.Sprintf("{%d,%d}", a, b)); err != nil {
+				return "", err
+			}
 		case (c == 'P' || c == 'Q') && p.peek1() == '6':
 			// A function pointer: Ghidra's spacing of its signature is not ported.
 			return "", errMsvc
@@ -90,11 +105,9 @@ func (p *msvcParser) templateArgs(bare bool) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			if strings.Contains(t, "(") {
-				// A function type under a pointer ("P6" nested): its spacing is not ported.
-				return "", errMsvc
+			if err := add(t); err != nil {
+				return "", err
 			}
-			args = append(args, t)
 		case c == 'X' || c == '$' || c == '?' || c == 'Z':
 			return "", errMsvc
 		case c == 'V' || c == 'U' || c == 'T':
@@ -103,13 +116,17 @@ func (p *msvcParser) templateArgs(bare bool) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			args = append(args, n.String())
+			if err := add(n.String()); err != nil {
+				return "", err
+			}
 		case c == '_' || msvcBasicTypes[c] != "":
 			t, err := p.mdDataTypeParser()
 			if err != nil {
 				return "", err
 			}
-			args = append(args, t)
+			if err := add(t); err != nil {
+				return "", err
+			}
 		default:
 			return "", errMsvc
 		}
