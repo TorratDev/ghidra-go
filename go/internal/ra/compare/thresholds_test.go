@@ -239,8 +239,6 @@ func TestViolationMessagesNameTheFollowUps(t *testing.T) {
 		v    Violation
 		want string
 	}{
-		{Violation{Binary: "x.exe", Metric: "result"}, "x.exe: gated binary has no result (the PE binaries are not in the corpus yet, #20)"},
-		{Violation{Binary: "x.dll", Metric: "result"}, "x.dll: gated binary has no result (the PE binaries are not in the corpus yet, #20)"},
 		{Violation{Binary: "demangle-oracle", Category: "MicrosoftDemangler", Metric: "result"},
 			"demangle-oracle / MicrosoftDemangler: gated category has no result (the Go port has no MSVC demangler yet, #17)"},
 		{Violation{Binary: "elf", Metric: "result"}, "elf: gated binary has no result"},

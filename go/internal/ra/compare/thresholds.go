@@ -36,11 +36,7 @@ func (v Violation) String() string {
 	case v.Metric != "result":
 		return fmt.Sprintf("%s / %s: %s %.4f < required %.4f", v.Binary, v.Category, v.Metric, v.Actual, v.Required)
 	case v.Category == "":
-		msg := fmt.Sprintf("%s: gated binary has no result", v.Binary)
-		if strings.HasSuffix(v.Binary, ".exe") || strings.HasSuffix(v.Binary, ".dll") {
-			msg += " (the PE binaries are not in the corpus yet, #20)"
-		}
-		return msg
+		return fmt.Sprintf("%s: gated binary has no result", v.Binary)
 	}
 	msg := fmt.Sprintf("%s / %s: gated category has no result", v.Binary, v.Category)
 	if v.Category == "MicrosoftDemangler" {

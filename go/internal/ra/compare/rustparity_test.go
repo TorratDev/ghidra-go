@@ -81,14 +81,9 @@ func TestParityWithRustRegress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Known gaps only: the four PE binaries are not in the corpus (#20) and
-	// the Go port has no MSVC demangler (#17).
+	// Known gaps only: the Go port has no MSVC demangler (#17).
 	want := map[string]bool{
-		"cxx-msvc-i386.dll: gated binary has no result (the PE binaries are not in the corpus yet, #20)":                   true,
-		"cxx-msvc-x86_64.dll: gated binary has no result (the PE binaries are not in the corpus yet, #20)":                 true,
-		"freestanding-i386-pe-clang-O2.exe: gated binary has no result (the PE binaries are not in the corpus yet, #20)":   true,
-		"freestanding-x86_64-pe-clang-O2.exe: gated binary has no result (the PE binaries are not in the corpus yet, #20)": true,
-		"demangle-oracle / MicrosoftDemangler: gated category has no result (the Go port has no MSVC demangler yet, #17)":  true,
+		"demangle-oracle / MicrosoftDemangler: gated category has no result (the Go port has no MSVC demangler yet, #17)": true,
 	}
 	got := map[string]bool{}
 	for _, v := range out.Violations {
