@@ -17,6 +17,11 @@ func DemangleMsvc(mangled string) *Demangled {
 	if err != nil || p.i != len(p.s) {
 		return nil
 	}
+	// Ghidra's name and namespace have no spaces; Full keeps them.
+	d.Name = strings.ReplaceAll(d.Name, " ", "_")
+	for i, s := range d.Namespace {
+		d.Namespace[i] = strings.ReplaceAll(s, " ", "_")
+	}
 	return d
 }
 
@@ -32,11 +37,22 @@ type msvcParser struct {
 	// types is the type table for backreferences 0-9 in types, filled by
 	// mdArgumentsList with the top-level argument types.
 	types []string
+	// asArg is set while template arguments are parsed: Ghidra prints a class,
+	// struct or union there without its keyword.
+	asArg bool
 }
 
 func (p *msvcParser) peek() byte {
 	if p.i < len(p.s) {
 		return p.s[p.i]
+	}
+	return 0
+}
+
+// peek1 is the character after the next one, or 0 at the end.
+func (p *msvcParser) peek1() byte {
+	if p.i+1 < len(p.s) {
+		return p.s[p.i+1]
 	}
 	return 0
 }
@@ -76,7 +92,8 @@ func (p *msvcParser) symbol() (*Demangled, error) {
 		if err != nil || p.i != len(p.s) {
 			return nil, errMsvc
 		}
-		return &Demangled{Scheme: Msvc, Name: t, Full: t}, nil
+		// Full is the rendered text, which Ghidra writes with '_' for spaces too.
+		return &Demangled{Scheme: Msvc, Name: t, Full: strings.ReplaceAll(t, " ", "_")}, nil
 	}
 	xtor := byte(0)
 	if p.take('?') {
