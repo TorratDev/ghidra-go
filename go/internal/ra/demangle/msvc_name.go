@@ -29,6 +29,17 @@ func (n msvcName) String() string {
 func (p *msvcParser) mdQualifiedName() (msvcName, error) {
 	var n msvcName
 	for !p.take('@') {
+		if p.positionStartsWith("?$") {
+			// The template's arguments end with their own '@'; the loop's '@' closes the list.
+			t, _, err := p.templateName(false)
+			if err != nil {
+				return msvcName{}, err
+			}
+			n.parts = append(n.parts, t)
+			// The whole "name<args>" is a name for later backreferences (MDReusableName).
+			p.addName(t)
+			continue
+		}
 		backref := isDigit(p.peek())
 		name, err := p.component()
 		if err != nil {
@@ -65,9 +76,7 @@ func (p *msvcParser) component() (string, error) {
 		return "", errMsvc
 	}
 	name := p.s[start:p.i]
-	if len(p.names) < 10 {
-		p.names = append(p.names, name)
-	}
+	p.addName(name)
 	return name, nil
 }
 
@@ -77,4 +86,11 @@ func isIdentStart(c byte) bool {
 
 func isIdent(c byte) bool {
 	return isIdentStart(c) || isDigit(c)
+}
+
+// addName adds a name to the name table for backreferences, up to ten entries.
+func (p *msvcParser) addName(name string) {
+	if len(p.names) < 10 {
+		p.names = append(p.names, name)
+	}
 }
