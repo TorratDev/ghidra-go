@@ -950,8 +950,10 @@ func (p *propagation) step(addr uint64, in constState) constState {
 		p.params[addr] = nil
 		for _, rv := range state {
 			v := out[rv.Reg]
-			// shortcut: a value that is its writer's next address is a return address
-			// (SYSCALL leaves one in RCX), not a pointer; #41 tracks those refs.
+			// A value that is its writer's fallthrough is no pointer: Ghidra's
+			// evaluatePureDataRef rejects a pure data ref to the fallthrough of the
+			// referencing instruction (SymbolicPropogator.java:2826-2845). A SYSCALL
+			// leaves its return address in RCX, the case this meets.
 			if p.args[rv.Reg] && v.writer != noWriter && a.prog.Memory.IsMapped(v.val) &&
 				v.val != a.insns[v.writer].D.end() {
 				p.params[addr] = append(p.params[addr], paramRef{v.writer, v.val})
