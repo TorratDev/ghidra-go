@@ -1,7 +1,7 @@
-// Package loader is the Go port of the ELF and raw-image parts of
-// rust-analysis/crates/ra-loader (Ghidra ElfLoader, BinaryLoader and the
-// .eh_frame function seeding of GccExceptionAnalyzer). PE and Mach-O are not
-// ported (follow-up #18).
+// Package loader is the Go port of the ELF, PE and raw-image parts of
+// rust-analysis/crates/ra-loader (Ghidra ElfLoader, PeLoader, BinaryLoader and
+// the .eh_frame function seeding of GccExceptionAnalyzer). Mach-O is not
+// ported (follow-up #38).
 package loader
 
 import (
@@ -73,6 +73,14 @@ type Program struct {
 	FallbackNames map[uint64]string
 	// IsRust is set the way Ghidra's loaders tag Rust programs.
 	IsRust bool
+	// Relocations are PE base relocation entries, ABSOLUTE included (Ghidra
+	// RelocationTable, status SKIPPED).
+	Relocations []Relocation
+}
+
+type Relocation struct {
+	Addr uint64
+	Type uint16
 }
 
 type Export struct {
@@ -111,8 +119,12 @@ func LoadBytes(data []byte, path, languageOverride string) (*Program, error) {
 		if p, err = loadELF(f, path); err != nil {
 			return nil, err
 		}
-	} else if isPEOrMachO(data) {
-		return nil, fmt.Errorf("%s: PE and Mach-O are not supported yet (#18)", path)
+	} else if pf, err := pe.NewFile(bytes.NewReader(data)); err == nil {
+		if p, err = loadPE(pf, data, path); err != nil {
+			return nil, err
+		}
+	} else if isMachO(data) {
+		return nil, fmt.Errorf("%s: Mach-O is not supported yet (#38)", path)
 	} else {
 		if languageOverride == "" {
 			return nil, fmt.Errorf("%s: unrecognized format; pass --language to load as raw binary", path)
@@ -126,11 +138,7 @@ func LoadBytes(data []byte, path, languageOverride string) (*Program, error) {
 	return p, nil
 }
 
-func isPEOrMachO(data []byte) bool {
-	if f, err := pe.NewFile(bytes.NewReader(data)); err == nil {
-		f.Close()
-		return true
-	}
+func isMachO(data []byte) bool {
 	if f, err := macho.NewFile(bytes.NewReader(data)); err == nil {
 		f.Close()
 		return true
