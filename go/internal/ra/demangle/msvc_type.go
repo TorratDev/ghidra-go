@@ -91,7 +91,8 @@ func (p *msvcParser) mdPointer(kind byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	suffix := map[byte]string{'P': " *", 'Q': " * const", 'R': " * volatile", 'A': " &"}[kind]
+	// The const and volatile of a 'Q' or 'R' pointer print on the pointee.
+	suffix := map[byte]string{'P': " *", 'Q': " const *", 'R': " volatile *", 'A': " &"}[kind]
 	text := pointee + qual + suffix
 	if ptr64 {
 		text += " __ptr64"
@@ -150,7 +151,7 @@ func (p *msvcParser) mdFunctionType() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s (%s*)(%s)", ret, cc, strings.Join(args, ", ")), nil
+	return fmt.Sprintf("%s (%s *)(%s)", ret, cc, strings.Join(args, ",")), nil
 }
 
 // returnType parses a return type and returns its spelling. '@' stands for

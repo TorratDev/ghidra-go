@@ -3,10 +3,10 @@ package demangle
 import "strings"
 
 // argBackrefKinds are the first characters of the top-level argument types
-// that mdArgumentsList adds to the type table: pointers and references, and
-// class, struct, union and enum names. Basic types, arrays, 'X' and 'Z' are
-// not added.
-const argBackrefKinds = "PQRAVUTW"
+// that mdArgumentsList adds to the type table: pointers and references, class,
+// struct, union and enum names, and the extended types '_' (bool, __int64,
+// wchar_t). Basic types, arrays, 'X' and 'Z' are not added.
+const argBackrefKinds = "PQRAVUTW_"
 
 // mdArgumentsList ports MDArgumentsList: it parses the parameters and their
 // 'Z' terminator, and returns their spellings. A lone 'X' is the void list;
