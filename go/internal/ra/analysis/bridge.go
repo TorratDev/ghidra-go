@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 
 	"github.com/TorratDev/ghidra/go/internal/ra/core"
 	"github.com/TorratDev/ghidra/go/internal/ra/sleigh"
@@ -29,10 +31,10 @@ func (c BridgeConfig) command(args ...string) *exec.Cmd {
 }
 
 // BridgeDecoder is a Decoder backed by the Java bridge. The bridge supplies
-// Ghidra's flow facts and the per-instruction p-code facts (IndirectVia,
-// DataRefs, Addends, IndexedLoad). It is not a StateDecoder: register state
-// does not carry between instructions, so block-local constant propagation
-// does not run with it. That is the known gap of the contract.
+// Ghidra's flow facts and the p-code facts (IndirectVia, DataRefs, Addends,
+// IndexedLoad). It is a StateDecoder: DecodeIn sends the register constants
+// known before an instruction and gets back the ones still known after it, so
+// block-local constant propagation runs on the bridge.
 type BridgeDecoder struct {
 	cfg     BridgeConfig
 	lang    *sleigh.Language
@@ -99,8 +101,20 @@ func (b *BridgeDecoder) Close() error {
 }
 
 // Decode decodes one instruction with the context set for its address, or the
-// language's initial context. The bridge reads at most 16 bytes.
+// language's initial context, and no register state.
 func (b *BridgeDecoder) Decode(addr uint64, bytes []byte) (*Decoded, bool) {
+	return b.decode(addr, bytes, nil)
+}
+
+// DecodeIn is Decode with the register constants in state seeded into the
+// instruction. On success state is replaced by the constants still known after it.
+func (b *BridgeDecoder) DecodeIn(addr uint64, bytes []byte, state *RegState) (*Decoded, bool) {
+	return b.decode(addr, bytes, state)
+}
+
+// decode sends one instruction; state is nil for no register state. The bridge
+// reads at most 16 bytes.
+func (b *BridgeDecoder) decode(addr uint64, bytes []byte, state *RegState) (*Decoded, bool) {
 	if len(bytes) > 16 {
 		bytes = bytes[:16]
 	}
@@ -109,7 +123,17 @@ func (b *BridgeDecoder) Decode(addr uint64, bytes []byte) (*Decoded, bool) {
 		ctx = b.context
 	}
 	batch := []sleigh.Insn{{Addr: core.Addr(addr), Bytes: bytes, Context: ctx}}
-	if err := sleigh.WriteRequest(b.stdin, sleigh.Request{Language: b.cfg.LanguageID, Batch: batch}); err != nil {
+	req := sleigh.Request{Language: b.cfg.LanguageID, Batch: batch}
+	if state != nil {
+		var seeds []sleigh.Register
+		for _, rv := range *state {
+			if r, ok := registerOf(rv); ok {
+				seeds = append(seeds, r)
+			}
+		}
+		req.State = [][]sleigh.Register{seeds}
+	}
+	if err := sleigh.WriteRequest(b.stdin, req); err != nil {
 		return nil, false
 	}
 	b.Calls++
@@ -118,6 +142,9 @@ func (b *BridgeDecoder) Decode(addr uint64, bytes []byte) (*Decoded, bool) {
 		return nil, false
 	}
 	s := res[0].Decoded
+	if state != nil {
+		*state = stateOf(s.State)
+	}
 	b.Used[addr] = s.Context
 	d := &Decoded{Addr: addr, Len: s.Len, Mnemonic: s.Mnemonic, Text: s.Text, Flow: s.Flow,
 		HasFallthrough: s.HasFallthrough, Indirect: s.Indirect}
@@ -143,4 +170,27 @@ func (b *BridgeDecoder) Decode(addr uint64, bytes []byte) (*Decoded, bool) {
 	}
 	d.IndexedLoad = s.IndexedLoad
 	return d, true
+}
+
+// registerOf is the bridge form of a state entry: its key is regKey of the varnode.
+func registerOf(rv RegValue) (sleigh.Register, bool) {
+	f := strings.Split(rv.Reg, ":")
+	if len(f) != 3 {
+		return sleigh.Register{}, false
+	}
+	off, err := strconv.ParseUint(f[1], 10, 64)
+	size, err2 := strconv.ParseUint(f[2], 10, 32)
+	if err != nil || err2 != nil {
+		return sleigh.Register{}, false
+	}
+	return sleigh.Register{Varnode: sleigh.Varnode{Space: f[0], Offset: off, Size: uint32(size)}, Value: rv.Value}, true
+}
+
+// stateOf is the register state the bridge reported.
+func stateOf(regs []sleigh.Register) RegState {
+	var s RegState
+	for _, r := range regs {
+		s = append(s, RegValue{regKey(r.Varnode), r.Value})
+	}
+	return s
 }

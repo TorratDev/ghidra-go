@@ -88,8 +88,7 @@ func Analyze(prog *loader.Program, lang *Language, dec Decoder, opts Options) *A
 }
 
 // noteGaps records in the diagnostics which analyses did not run because the
-// decoder does not supply the facts they need (the Java bridge contract has
-// no indirect_via, data_refs, addends, indexed_load or register state).
+// decoder does not supply the facts they need.
 func (a *analyzer) noteGaps() {
 	var via, refs, addends bool
 	for _, i := range a.insns {
@@ -730,7 +729,7 @@ func regKey(v sleigh.Varnode) string { return fmt.Sprintf("%s:%d:%d", v.Space, v
 // block predecessor, so references through registers (ADRP+LDR, LEA+MOV [reg])
 // land on the instruction that uses them. State is reset at block starts and
 // after calls. It needs a StateDecoder (p-code constants); without one nothing
-// happens, which is the known gap of the Java bridge contract.
+// happens.
 func (a *analyzer) propagateConstants() {
 	if a.sdec == nil {
 		return

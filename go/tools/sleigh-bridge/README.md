@@ -63,12 +63,25 @@ keep one bridge process for many batches.
 
 Besides Ghidra's flow facts each response carries `indirect_via`, `data_refs`,
 `addends` and `indexed_load`, derived from the instruction's own p-code (a port
-of the Rust `ra-sleigh` extraction). They are tracked within one instruction:
-no register state carries over from the previous one, so a use that depends on
-an earlier `ADRP`/`LEA` (AArch64 `ADRP`+`LDR`, a PIC table base in a register)
-is not resolved here. Ghidra folds a memory operand at a constant address into
-a ram varnode; reading one counts as a `read` data ref and writing one as a
-`write`.
+of the Rust `ra-sleigh` extraction). They are tracked within one instruction,
+except `data_refs`, which also count the memory accesses made through the
+register state the entry carries (below). Ghidra folds a memory operand at a
+constant address into a ram varnode; reading one counts as a `read` data ref
+and writing one as a `write`.
+
+## Register state
+
+The bridge is a `StateDecoder` for block-local constant propagation. A request
+entry may carry `"state"`: the register constants known before the instruction,
+as `{"space","offset","size","value"}` objects (`offset` and `size` are numbers,
+`value` a hex string, as the language record gives varnodes). The bridge seeds
+them into the instruction's p-code and adds a second pass whose memory accesses
+join the entry's `data_refs` (a `LEA rax,[rip+x]` before a `MOV eax,[rax]`
+gives the read at the use site). The response's `"state"` lists the constants
+still known after the instruction (the seeded ones it did not overwrite, and
+those it materialized). Constants are not propagated across blocks or calls;
+that is the Go analysis's job (`propagateConstants`), which sends the state
+back with each instruction.
 
 ## Rules
 

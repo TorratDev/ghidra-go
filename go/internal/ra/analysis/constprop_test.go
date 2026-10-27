@@ -103,3 +103,16 @@ func TestConstantPropagationResetsAtBlockStarts(t *testing.T) {
 		t.Errorf("jump target must start with no state: %v", refs)
 	}
 }
+
+// The bridge carries register state as regKey strings; the round trip keeps
+// the varnode and the value, and a key that is not one is refused.
+func TestRegisterKeyRoundTrip(t *testing.T) {
+	want := sleigh.Register{Varnode: rdi, Value: 0x4000}
+	got, ok := registerOf(RegValue{regKey(rdi), 0x4000})
+	if !ok || got != want {
+		t.Errorf("registerOf: %+v %v, want %+v", got, ok, want)
+	}
+	if _, ok := registerOf(RegValue{"register:x:8", 1}); ok {
+		t.Error("a key with a bad offset is accepted")
+	}
+}

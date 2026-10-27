@@ -32,6 +32,11 @@ import (
 // data_refs ([{"addr":"0x..","access":"read|write|address"}]), addends (hex
 // addresses) and indexed_load (bool); see Decoded.
 // Addresses and contexts are "0x..." hex strings.
+//
+// Register state is optional on both sides: a request entry may carry "state",
+// the register constants known before the instruction
+// ([{"space":"register","offset":16,"size":8,"value":"0x.."}]), and the response
+// carries the constants still known after it, in the same shape; see Register.
 
 // Context is a SLEIGH context register value. On the wire it is a "0x..."
 // hex string, like an address, and a bare JSON number is rejected: a Java long
@@ -62,15 +67,50 @@ type Insn struct {
 	Context Context
 }
 
+// Register is a varnode with a constant value: the state the bridge is seeded
+// with, and the state it reports after the instruction.
+type Register struct {
+	Varnode
+	Value uint64
+}
+
 type Request struct {
 	Language string
 	Batch    []Insn
+	// State, when not nil, holds the register constants for each entry of
+	// Batch: State[i] seeds Batch[i] (nil for none). Its length is len(Batch).
+	State [][]Register
 }
 
 type insnWire struct {
-	Addr    *core.Addr `json:"addr"`
-	Bytes   *string    `json:"bytes"`
-	Context *Context   `json:"context"`
+	Addr    *core.Addr     `json:"addr"`
+	Bytes   *string        `json:"bytes"`
+	Context *Context       `json:"context"`
+	State   []registerWire `json:"state"`
+}
+
+type registerWire struct {
+	Space  *string  `json:"space"`
+	Offset *uint64  `json:"offset"`
+	Size   *uint32  `json:"size"`
+	Value  *Context `json:"value"`
+}
+
+// registers converts the wire form, naming the first entry with a missing field.
+func registers(ws []registerWire) ([]Register, error) {
+	var out []Register
+	for i, w := range ws {
+		if w.Space == nil || w.Offset == nil || w.Size == nil || w.Value == nil {
+			return nil, fmt.Errorf(`state[%d]: missing required field "space", "offset", "size" or "value"`, i)
+		}
+		out = append(out, Register{Varnode{*w.Space, *w.Offset, *w.Size}, uint64(*w.Value)})
+	}
+	return out, nil
+}
+
+func (r Register) wire() registerWire {
+	space, offset, size, value := r.Space, r.Offset, r.Size, Context(r.Value)
+	return registerWire{&space, &offset, &size, &value}
 }
 
 type requestWire struct {
@@ -191,27 +231,45 @@ func (r Request) MarshalJSON() ([]byte, error) {
 		Batch    []insnJSON `json:"batch"`
 	}{r.Language, make([]insnJSON, len(r.Batch))}
 	for i, in := range r.Batch {
-		w.Batch[i] = insnJSON{in.Addr, hex.EncodeToString(in.Bytes), in.Context}
+		w.Batch[i] = insnJSON{in.Addr, hex.EncodeToString(in.Bytes), in.Context, nil}
+		if r.State != nil {
+			w.Batch[i].State = wireRegisters(r.State[i])
+		}
 	}
 	return json.Marshal(w)
 }
 
 type insnJSON struct {
-	Addr    core.Addr `json:"addr"`
-	Bytes   string    `json:"bytes"`
-	Context Context   `json:"context"`
+	Addr    core.Addr      `json:"addr"`
+	Bytes   string         `json:"bytes"`
+	Context Context        `json:"context"`
+	State   []registerWire `json:"state,omitempty"`
 }
+
+func wireRegisters(rs []Register) []registerWire {
+	out := make([]registerWire, len(rs))
+	for i, r := range rs {
+		out[i] = r.wire()
+	}
+	return out
+}
+
+// registerShape is the object shape of one register state entry.
+func registerShape() *shape { return obj("space", "offset", "size", "value") }
 
 var (
 	requestShape = func() *shape {
 		s := obj("language", "batch")
-		s.keys["batch"] = &shape{elem: obj("addr", "bytes", "context")}
+		e := obj("addr", "bytes", "context", "state")
+		e.keys["state"] = &shape{elem: registerShape()}
+		s.keys["batch"] = &shape{elem: e}
 		return s
 	}()
 	responseShape = func() *shape {
 		s := obj("addr", "len", "mnemonic", "text", "flow", "has_fallthrough", "targets", "indirect", "context",
-			"indirect_via", "data_refs", "addends", "indexed_load")
+			"indirect_via", "data_refs", "addends", "indexed_load", "state")
 		s.keys["data_refs"] = &shape{elem: obj("addr", "access")}
+		s.keys["state"] = &shape{elem: registerShape()}
 		return s
 	}()
 	errorShape = obj("error")
@@ -241,7 +299,17 @@ func ParseRequest(line []byte) (*Request, error) {
 		if err != nil || len(b) == 0 {
 			return nil, fmt.Errorf(`request: batch[%d]: field "bytes" must be non-empty hex`, i)
 		}
+		st, err := registers(e.State)
+		if err != nil {
+			return nil, fmt.Errorf("request: batch[%d]: %w", i, err)
+		}
 		req.Batch = append(req.Batch, Insn{*e.Addr, b, *e.Context})
+		if len(st) > 0 && req.State == nil {
+			req.State = make([][]Register, len(*w.Batch))
+		}
+		if req.State != nil {
+			req.State[i] = st
+		}
 	}
 	return req, nil
 }
@@ -250,6 +318,9 @@ func ParseRequest(line []byte) (*Request, error) {
 func WriteRequest(w io.Writer, r Request) error {
 	if len(r.Batch) == 0 || r.Language == "" {
 		return errors.New("request needs a language and a non-empty batch")
+	}
+	if r.State != nil && len(r.State) != len(r.Batch) {
+		return errors.New("request state needs one entry per batch entry")
 	}
 	b, err := json.Marshal(r)
 	if err != nil {
@@ -261,9 +332,10 @@ func WriteRequest(w io.Writer, r Request) error {
 
 // Decoded is what the bridge reports for one instruction: Ghidra's facts, not
 // ra's analysis. Field names and JSON tags are the Rust ra-sleigh ones.
-// IndirectVia, DataRefs, Addends and IndexedLoad are the p-code-derived facts
-// of Rust's ra-sleigh, computed within the one instruction (no state carries
-// over from the previous one).
+// IndirectVia, Addends and IndexedLoad are the p-code-derived facts of Rust's
+// ra-sleigh, computed within the one instruction. DataRefs also count the
+// accesses through the register state the entry was decoded with (a LEA
+// before the load), and State is the register state after the instruction.
 type Decoded struct {
 	Addr     core.Addr `json:"addr"`
 	Len      uint32    `json:"len"`
@@ -289,6 +361,9 @@ type Decoded struct {
 	Addends []core.Addr
 	// IndexedLoad is a load from a run-time computed address.
 	IndexedLoad bool
+	// State is the register constants known after the instruction (the
+	// seeded ones it did not overwrite, and those it materialized).
+	State []Register
 }
 
 // Access is how an instruction touches a constant address.
@@ -316,10 +391,11 @@ type decodedWire struct {
 	Indirect       *bool        `json:"indirect"`
 	Context        *Context     `json:"context"`
 
-	IndirectVia *core.Addr    `json:"indirect_via,omitempty"`
-	DataRefs    []dataRefWire `json:"data_refs,omitempty"`
-	Addends     []core.Addr   `json:"addends,omitempty"`
-	IndexedLoad bool          `json:"indexed_load,omitempty"`
+	IndirectVia *core.Addr     `json:"indirect_via,omitempty"`
+	DataRefs    []dataRefWire  `json:"data_refs,omitempty"`
+	Addends     []core.Addr    `json:"addends,omitempty"`
+	IndexedLoad bool           `json:"indexed_load,omitempty"`
+	State       []registerWire `json:"state,omitempty"`
 }
 
 type dataRefWire struct {
@@ -389,6 +465,10 @@ func ParseResponse(line []byte) (*Decoded, error) {
 			return nil, fmt.Errorf(`response: data_refs[%d]: unknown access %q`, i, *r.Access)
 		}
 	}
+	d.State, err = registers(w.State)
+	if err != nil {
+		return nil, fmt.Errorf("response: %w", err)
+	}
 	return d, nil
 }
 
@@ -412,7 +492,7 @@ func (d Decoded) MarshalJSON() ([]byte, error) {
 		addends = []core.Addr{}
 	}
 	return json.Marshal(decodedWire{&d.Addr, &d.Len, &d.Mnemonic, &d.Text, &name, &d.HasFallthrough, &targets, &d.Indirect, &d.Context,
-		d.IndirectVia, refs, addends, d.IndexedLoad})
+		d.IndirectVia, refs, addends, d.IndexedLoad, wireRegisters(d.State)})
 }
 
 // Result is the answer for one batch entry: Decoded, or the error that
