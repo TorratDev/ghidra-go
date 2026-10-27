@@ -37,7 +37,12 @@ func TestMeasureAgainstGhidraExports(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			dec, lang, err := StartBridge(BridgeConfig{Java: java, ClassPath: cp, GhidraDir: ghidra, LanguageID: prog.Language, Compiler: "gcc"})
+			// AARCH64 has no "gcc" compiler spec; its "default" one is the ELF convention.
+			compiler := "gcc"
+			if strings.HasPrefix(prog.Language, "AARCH64:") {
+				compiler = "default"
+			}
+			dec, lang, err := StartBridge(BridgeConfig{Java: java, ClassPath: cp, GhidraDir: ghidra, LanguageID: prog.Language, Compiler: compiler})
 			if err != nil {
 				t.Fatal(err)
 			}

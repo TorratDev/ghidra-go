@@ -69,8 +69,13 @@ func startBridge(t *testing.T) *bridge {
 }
 
 func (b *bridge) run(lang string, batch []Insn) []Result {
+	return b.runIn(lang, batch, nil)
+}
+
+// runIn is run with the register constants of each entry (see Request.State).
+func (b *bridge) runIn(lang string, batch []Insn, state [][]Register) []Result {
 	b.t.Helper()
-	if err := WriteRequest(b.stdin, Request{Language: lang, Batch: batch}); err != nil {
+	if err := WriteRequest(b.stdin, Request{Language: lang, Batch: batch, State: state}); err != nil {
 		b.t.Fatal(err)
 	}
 	res, err := ReadResponses(b.out, batch)
@@ -403,5 +408,42 @@ func TestBridgeAdrpHasNoDataRef(t *testing.T) {
 	r := startBridge(t).run("AARCH64:LE:64:v8A", []Insn{{0x1000, b, a64.InitialContext}})[0]
 	if r.Err != nil || r.Decoded.Mnemonic != "ADRP" || len(r.Decoded.DataRefs) != 0 {
 		t.Errorf("%+v", r)
+	}
+}
+
+// The gcc -O0 pattern: lea rax,[rip+0xff9] at 0x1000 leaves rax = 0x2000, and
+// the load mov eax,[rax] at 0x1007 reads it. Only the state carried from the
+// lea makes that a reference, at the load.
+func TestBridgeStateSeedsUseSiteRef(t *testing.T) {
+	const lang = "x86:LE:64:default"
+	ctx := languageInfo(t, lang, "gcc").InitialContext
+	insn := func(addr core.Addr, hexBytes string) Insn {
+		b, err := hex.DecodeString(hexBytes)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return Insn{addr, b, ctx}
+	}
+	br := startBridge(t)
+	lea := br.run(lang, []Insn{insn(0x1000, "488d05f90f0000")})[0]
+	rax := Register{Varnode{"register", 0, 8}, 0x2000}
+	if lea.Err != nil || !slices.Equal(lea.Decoded.State, []Register{rax}) {
+		t.Fatalf("lea: %+v", lea)
+	}
+	if r := br.run(lang, []Insn{insn(0x1007, "8b00")})[0]; r.Err != nil || len(r.Decoded.DataRefs) != 0 {
+		t.Errorf("load without state: %+v", r)
+	}
+	if r := br.runIn(lang, []Insn{insn(0x1007, "8b00")}, [][]Register{lea.Decoded.State})[0]; r.Err != nil ||
+		!slices.Equal(r.Decoded.DataRefs, []DataRef{{0x2000, AccessRead}}) {
+		t.Errorf("load with the lea's state: %+v", r)
+	}
+	// mov rdi,rax at 0x1007 copies the address: a reference at the copy, not a read
+	if r := br.runIn(lang, []Insn{insn(0x1007, "4889c7")}, [][]Register{lea.Decoded.State})[0]; r.Err != nil ||
+		!slices.Equal(r.Decoded.DataRefs, []DataRef{{0x2000, AccessAddress}}) {
+		t.Errorf("copy of the lea's address: %+v", r)
+	}
+	if r := br.runIn(lang, []Insn{insn(0x1007, "8b00")}, [][]Register{{{Varnode{"nosuch", 0, 8}, 1}}})[0]; r.Err == nil ||
+		!strings.Contains(r.Err.Error(), "unknown address space") {
+		t.Errorf("state in an unknown space: %+v", r)
 	}
 }

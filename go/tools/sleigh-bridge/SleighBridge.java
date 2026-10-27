@@ -3,18 +3,22 @@
 // Decodes instructions through Ghidra 12.1.4's own SLEIGH engine and reports
 // Ghidra's facts over the JSON-lines contract of go/internal/ra/sleigh:
 //
-//   request  (one line, stdin):  {"language":ID,"batch":[{"addr":"0x..","bytes":"hex","context":"0x.."}]}
+//   request  (one line, stdin):  {"language":ID,"batch":[{"addr":"0x..","bytes":"hex","context":"0x..",
+//                                 "state":[{"space","offset","size","value":"0x.."}]}]}
 //   response (one line per batch entry, in order, stdout):
 //     {"addr","len","mnemonic","text","flow","has_fallthrough","targets","indirect","context",
-//      "indirect_via","data_refs","addends","indexed_load"}
+//      "indirect_via","data_refs","addends","indexed_load","state"}
 //     or {"error":"message"}
 //
-// The last four are p-code-derived facts (a port of Rust ra-sleigh's
-// analyze_pcode), tracked within the one instruction only: indirect_via is the
-// constant address a BRANCHIND/CALLIND target is loaded from (or null),
-// data_refs the constant addresses loaded, stored or materialized (access
-// read|write|address), addends the constants (>= 0x100) added to a run-time
-// value, indexed_load whether a LOAD reads a run-time computed address.
+// The last five are p-code-derived facts (a port of Rust ra-sleigh's
+// analyze_pcode). indirect_via is the constant address a BRANCHIND/CALLIND
+// target is loaded from (or null), data_refs the constant addresses loaded,
+// stored or materialized (access read|write|address), addends the constants
+// (>= 0x100) added to a run-time value, indexed_load whether a LOAD reads a
+// run-time computed address. They are tracked within the one instruction, except
+// that data_refs also count the accesses through the entry's "state": the
+// register constants known before it (block-local constant propagation). state
+// in the response holds the constants still known after the instruction.
 //
 // The bridge never re-derives flows from p-code: "flow" is Ghidra's FlowType
 // name. The computed forms are normalized to the base name plus indirect=true
@@ -97,6 +101,22 @@ public class SleighBridge {
 		long addr;
 		byte[] bytes;
 		long context;
+		List<Reg> state = new ArrayList<>();
+	}
+
+	/** A varnode with a constant value: a register constant seeded into, or reported from, an entry. */
+	static final class Reg {
+		String space;
+		long offset;
+		int size;
+		long value;
+
+		Reg(String space, long offset, int size, long value) {
+			this.space = space;
+			this.offset = offset;
+			this.size = size;
+			this.value = value;
+		}
 	}
 
 	static final class Request {
@@ -407,6 +427,9 @@ public class SleighBridge {
 					case "context":
 						e.context = parseHex64(nextString(r, "context"), "batch[" + i + "] context");
 						break;
+					case "state":
+						e.state = parseState(r, i);
+						break;
 					default:
 						throw new BridgeError("batch[" + i + "]: unknown field \"" + name + "\"");
 				}
@@ -421,6 +444,50 @@ public class SleighBridge {
 		}
 		r.endArray();
 		return batch;
+	}
+
+	/** The register state of batch entry i: strict like the rest of the request. */
+	static List<Reg> parseState(JsonReader r, int i) throws Exception {
+		List<Reg> state = new ArrayList<>();
+		r.beginArray();
+		while (r.hasNext()) {
+			String space = null;
+			long offset = 0, value = 0;
+			int size = 0;
+			Set<String> seen = new HashSet<>();
+			r.beginObject();
+			while (r.hasNext()) {
+				String name = r.nextName();
+				if (!seen.add(name)) {
+					throw new BridgeError("batch[" + i + "] state: duplicate field \"" + name + "\"");
+				}
+				switch (name) {
+					case "space":
+						space = nextString(r, "space");
+						break;
+					case "offset":
+						offset = r.nextLong();
+						break;
+					case "size":
+						size = r.nextInt();
+						break;
+					case "value":
+						value = parseHex64(nextString(r, "value"), "batch[" + i + "] state value");
+						break;
+					default:
+						throw new BridgeError("batch[" + i + "] state: unknown field \"" + name + "\"");
+				}
+			}
+			r.endObject();
+			for (String f : new String[] { "space", "offset", "size", "value" }) {
+				if (!seen.contains(f)) {
+					throw new BridgeError("batch[" + i + "] state: missing required field \"" + f + "\"");
+				}
+			}
+			state.add(new Reg(space, offset, size, value));
+		}
+		r.endArray();
+		return state;
 	}
 
 	// ------------------------------------------------------------------ decoding
@@ -544,7 +611,24 @@ public class SleighBridge {
 			}
 			sb.append("],\"indirect\":").append(indirect);
 			sb.append(",\"context\":").append(hex(used));
-			Facts f = facts(ins, lang.getProgramCounter(), e.addr + ins.getLength());
+			long next = e.addr + ins.getLength();
+			Facts f = facts(lang, ins, next, List.of());
+			// Rust's decode_in: a second pass with the entry's register state keeps
+			// only its memory accesses, plus the addresses it reads from seeded
+			// registers (uses); a reference the first pass has stays as it is.
+			Facts seeded = facts(lang, ins, next, e.state);
+			for (int i = 0; i < seeded.refAddrs.size(); i++) {
+				if (!seeded.refAccess.get(i).equals("address") && !f.refAddrs.contains(seeded.refAddrs.get(i))) {
+					f.refAddrs.add(seeded.refAddrs.get(i));
+					f.refAccess.add(seeded.refAccess.get(i));
+				}
+			}
+			for (long a : seeded.uses) {
+				if (!f.refAddrs.contains(a)) {
+					f.refAddrs.add(a);
+					f.refAccess.add("address");
+				}
+			}
 			sb.append(",\"indirect_via\":").append(f.via == null ? "null" : hex(f.via));
 			sb.append(",\"data_refs\":[");
 			for (int i = 0; i < f.refAddrs.size(); i++) {
@@ -555,7 +639,12 @@ public class SleighBridge {
 			for (int i = 0; i < f.addends.size(); i++) {
 				sb.append(i > 0 ? "," : "").append(hex(f.addends.get(i)));
 			}
-			sb.append("],\"indexed_load\":").append(f.indexedLoad).append('}');
+			sb.append("],\"indexed_load\":").append(f.indexedLoad);
+			sb.append(",\"state\":[");
+			for (int i = 0; i < seeded.state.size(); i++) {
+				sb.append(i > 0 ? "," : "").append(reg(seeded.state.get(i)));
+			}
+			sb.append("]}");
 			return sb.toString();
 		}
 		finally {
@@ -571,6 +660,10 @@ public class SleighBridge {
 		final List<String> refAccess = new ArrayList<>();
 		final List<Long> addends = new ArrayList<>();
 		boolean indexedLoad;
+		/** The register constants known after the instruction. */
+		final List<Reg> state = new ArrayList<>();
+		/** Addresses held by the seeded registers the instruction reads. */
+		final List<Long> uses = new ArrayList<>();
 
 		void ref(long addr, String access) {
 			int i = refAddrs.indexOf(addr);
@@ -617,7 +710,15 @@ public class SleighBridge {
 			return null;
 		}
 
+		/** The varnodes whose values came from the seeded register state and are not overwritten yet. */
+		final List<Varnode> seeded = new ArrayList<>();
+
+		boolean isSeeded(Varnode v) {
+			return seeded.contains(v);
+		}
+
 		void set(Varnode out, Long val) {
+			seeded.removeIf(k -> overlaps(k, out));
 			for (int i = keys.size() - 1; i >= 0; i--) {
 				if (overlaps(keys.get(i), out)) {
 					keys.remove(i);
@@ -705,14 +806,33 @@ public class SleighBridge {
 	}
 
 	/** Port of Rust ra-sleigh analyze_pcode's fact extraction, within one instruction. */
-	static Facts facts(Instruction ins, Register pcReg, long instNext) {
+	static Facts facts(Language lang, Instruction ins, long instNext, List<Reg> seeds) throws BridgeError {
 		Facts f = new Facts();
 		Consts c = new Consts();
+		for (Reg r : seeds) {
+			Varnode v = seedVarnode(lang, r);
+			c.set(v, r.value);
+			c.seeded.add(v);
+		}
 		String mnemonic = mnemonic(ins);
+		Register pcReg = lang.getProgramCounter();
 		Varnode pc = pcReg == null ? null : new Varnode(pcReg.getAddress(), pcReg.getMinimumByteSize());
 		for (PcodeOp op : ins.getPcode(false)) {
 			Varnode out = op.getOutput();
 			int n = op.getNumInputs();
+			// A seeded register copied by the instruction (MOV rsi,rcx after LEA
+			// rcx,[rip+x]) holds an address: a reference at the use site, as Ghidra's
+			// ConstantPropagation has it. A memory access that has it wins in the merge.
+			// shortcut: only copies into a register count (not CMP's temporaries, ADD and
+			// CALL operands on a known constant, which the corpus does not reference);
+			// upgrade when measured.
+			if (op.getOpcode() == PcodeOp.COPY && out != null && !out.isUnique() && !isMemory(out)) {
+				Varnode in = op.getInput(0);
+				Long val = c.isSeeded(in) ? c.get(in) : null;
+				if (val != null && Long.compareUnsigned(val, 0x100) >= 0 && val != instNext && !f.uses.contains(val)) {
+					f.uses.add(val);
+				}
+			}
 			// Ghidra folds a memory operand at a constant address into a ram
 			// varnode: reading one is a load, writing one a store. The first
 			// input of BRANCH, CBRANCH and CALL is a destination, not a read.
@@ -799,7 +919,28 @@ public class SleighBridge {
 			}
 			c.set(out, val);
 		}
+		for (int i = 0; i < c.keys.size(); i++) {
+			// Rust's out_state: every known value except temporaries and the program counter.
+			Varnode k = c.keys.get(i);
+			if (!k.isUnique() && !k.equals(pc)) {
+				f.state.add(new Reg(k.getAddress().getAddressSpace().getName(), k.getOffset(), k.getSize(), c.vals.get(i)));
+			}
+		}
 		return f;
+	}
+
+	/** The varnode of a register constant of the request's state; its space must exist. */
+	static Varnode seedVarnode(Language lang, Reg r) throws BridgeError {
+		AddressSpace space = lang.getAddressFactory().getAddressSpace(r.space);
+		if (space == null) {
+			throw new BridgeError("state names unknown address space \"" + r.space + "\"");
+		}
+		return new Varnode(space.getAddress(r.offset), r.size);
+	}
+
+	static String reg(Reg r) {
+		return "{\"space\":" + quote(r.space) + ",\"offset\":" + Long.toUnsignedString(r.offset) + ",\"size\":" +
+			r.size + ",\"value\":" + hex(r.value) + "}";
 	}
 
 	// ------------------------------------------------------------------ JSON output
