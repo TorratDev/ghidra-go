@@ -25,12 +25,13 @@ func TestMsvcTemplateNames(t *testing.T) {
 	}
 }
 
-// Pointers to member functions are not ported, so the template constructors that
-// take them give no result.
+// Pointers to member functions and function pointers are not ported, so the
+// template instances that take them give no result.
 func TestMsvcTemplateRejects(t *testing.T) {
 	for _, mangled := range []string{
 		"??0?$AAA@@@QEAA@P8BBB@@EAAPEAVCCC@@XZ@Z",
 		"??0?$AAA@VBBB@@VCCC@@@@QEAA@P8BBB@@EAAPEAVCCC@@XZ@Z",
+		"?$AAA@P6AXXZ",
 	} {
 		if d := DemangleMsvc(mangled); d != nil {
 			t.Errorf("%s: got %q, want no result", mangled, d.Name)
@@ -80,5 +81,29 @@ func TestMsvcTemplateArgForms(t *testing.T) {
 				t.Errorf("full %q, want %q", d.Full, c.full)
 			}
 		})
+	}
+}
+
+// Spacing: the name and namespace are normalized as DemanglerUtil does (no space
+// before '*', '&' or ')', and '_' for the rest); Full keeps MDMang's spacing. These
+// are the Java rules, not an oracle name; the bare template is the oracle's.
+func TestMsvcTemplateSpacing(t *testing.T) {
+	for _, c := range []struct{ mangled, ns, full string }{
+		{"?g@?$AAA@ABH@@QAEXXZ", "AAA<int_const&>", "public void __thiscall AAA<int const &>::g(void) "},
+		{"?g@?$AAA@PAH@@QAEXXZ", "AAA<int*>", "public void __thiscall AAA<int *>::g(void) "},
+	} {
+		t.Run(c.mangled, func(t *testing.T) {
+			d := DemangleMsvc(c.mangled)
+			if d == nil {
+				t.Fatalf("%s: no result", c.mangled)
+			}
+			if ns(d) != c.ns || d.Full != c.full {
+				t.Errorf("got ns %q full %q; want %q %q", ns(d), d.Full, c.ns, c.full)
+			}
+		})
+	}
+	// A bare template's Full is the normalized name, as in the oracle.
+	if d := DemangleMsvc("?$name1@P$AAVname2@name3@@"); d == nil || d.Full != "name1<name3::name2_^>" || d.Name != d.Full {
+		t.Errorf("bare template: got %+v", d)
 	}
 }

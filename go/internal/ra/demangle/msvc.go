@@ -17,10 +17,10 @@ func DemangleMsvc(mangled string) *Demangled {
 	if err != nil || p.i != len(p.s) {
 		return nil
 	}
-	// Ghidra's name and namespace have no spaces; Full keeps them.
-	d.Name = strings.ReplaceAll(d.Name, " ", "_")
+	// Ghidra's name and namespace are normalized; Full keeps the MDMang spacing.
+	d.Name = normalizeName(d.Name)
 	for i, s := range d.Namespace {
-		d.Namespace[i] = strings.ReplaceAll(s, " ", "_")
+		d.Namespace[i] = normalizeName(s)
 	}
 	return d
 }
@@ -93,7 +93,7 @@ func (p *msvcParser) symbol() (*Demangled, error) {
 			return nil, errMsvc
 		}
 		// Full is the rendered text, which Ghidra writes with '_' for spaces too.
-		return &Demangled{Scheme: Msvc, Name: t, Full: strings.ReplaceAll(t, " ", "_")}, nil
+		return &Demangled{Scheme: Msvc, Name: t, Full: normalizeName(t)}, nil
 	}
 	xtor := byte(0)
 	if p.take('?') {
@@ -290,4 +290,14 @@ func argPtr64InFnPtr(args []string) bool {
 		}
 	}
 	return false
+}
+
+// spaceStrip is DemanglerUtil.stripSuperfluousSignatureSpaces: no space before
+// '*', '&' or ')', and none after '(' or ','.
+var spaceStrip = strings.NewReplacer(" *", "*", " &", "&", " )", ")", "( ", "(", ", ", ",")
+
+// normalizeName is Ghidra's DemangledObject name: the superfluous signature
+// spaces are stripped, then the rest of the spaces become '_'.
+func normalizeName(s string) string {
+	return strings.ReplaceAll(spaceStrip.Replace(s), " ", "_")
 }

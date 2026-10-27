@@ -82,6 +82,9 @@ func (p *msvcParser) templateArgs(bare bool) (string, error) {
 				return "", err
 			}
 			args = append(args, fmt.Sprintf("{%d,%d}", a, b))
+		case (c == 'P' || c == 'Q') && p.peek1() == '6':
+			// A function pointer: Ghidra's spacing of its signature is not ported.
+			return "", errMsvc
 		case c == 'P' || c == 'Q' || c == 'R' || c == 'A':
 			t, err := p.mdDataTypeParser()
 			if err != nil {

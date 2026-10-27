@@ -113,10 +113,6 @@ func (p *msvcParser) mdPointer(kind byte) (string, error) {
 	}
 	// The const and volatile of a 'Q' or 'R' pointer print on the pointee.
 	suffix := map[byte]string{'P': " *", 'Q': " const *", 'R': " volatile *", 'A': " &"}[kind]
-	if p.asArg {
-		// Ghidra prints a pointer or reference in a template argument with no space before the operator.
-		suffix = strings.Replace(suffix, " ", "", 1)
-	}
 	text := pointee + qual + suffix
 	if ptr64 {
 		text += " __ptr64"
