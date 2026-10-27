@@ -32,6 +32,7 @@ func TestMsvcTemplateRejects(t *testing.T) {
 		"??0?$AAA@@@QEAA@P8BBB@@EAAPEAVCCC@@XZ@Z",
 		"??0?$AAA@VBBB@@VCCC@@@@QEAA@P8BBB@@EAAPEAVCCC@@XZ@Z",
 		"?$AAA@P6AXXZ",
+		"?$AAA@PAP6AXXZ",
 	} {
 		if d := DemangleMsvc(mangled); d != nil {
 			t.Errorf("%s: got %q, want no result", mangled, d.Name)

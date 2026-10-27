@@ -90,6 +90,10 @@ func (p *msvcParser) templateArgs(bare bool) (string, error) {
 			if err != nil {
 				return "", err
 			}
+			if strings.Contains(t, "(") {
+				// A function type under a pointer ("P6" nested): its spacing is not ported.
+				return "", errMsvc
+			}
 			args = append(args, t)
 		case c == 'X' || c == '$' || c == '?' || c == 'Z':
 			return "", errMsvc
