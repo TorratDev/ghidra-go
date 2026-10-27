@@ -178,10 +178,11 @@ func (p *msvcParser) functionResult(d *Demangled, kind byte, xtor bool) (*Demang
 	if err != nil {
 		return nil, err
 	}
-	// shortcut: a function-pointer return type and a doubled const on a pointee
-	// are not spelled as Ghidra does (it writes the return type inside-out), so
-	// Full stays empty for them; upgrade when the pointer rules are ported.
-	if !sig.exact || strings.Contains(sig.ret, "(") || strings.Contains(strings.Join(sig.args, ","), "const const") {
+	// shortcut: a function-pointer return type, a doubled const on a pointee, and
+	// a 64-bit pointer inside a function-pointer argument are not spelled as
+	// Ghidra does (it writes the return type inside-out and drops the outer
+	// __ptr64 there), so Full stays empty for them; upgrade when the pointer rules are ported.
+	if !sig.exact || strings.Contains(sig.ret, "(") || strings.Contains(strings.Join(sig.args, ","), "const const") || argPtr64InFnPtr(sig.args) {
 		return d, nil
 	}
 	qual := d.Name
@@ -194,4 +195,14 @@ func (p *msvcParser) functionResult(d *Demangled, kind byte, xtor bool) (*Demang
 	}
 	d.Full = full + sig.cc + " " + qual + "(" + strings.Join(sig.args, ",") + ") "
 	return d, nil
+}
+
+// argPtr64InFnPtr reports a 64-bit pointer inside a function-pointer argument.
+func argPtr64InFnPtr(args []string) bool {
+	for _, a := range args {
+		if strings.Contains(a, "(") && strings.Contains(a, "__ptr64") {
+			return true
+		}
+	}
+	return false
 }

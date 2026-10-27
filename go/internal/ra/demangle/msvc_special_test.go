@@ -49,7 +49,7 @@ func TestMsvcSpecialNames(t *testing.T) {
 	}
 }
 
-// Guards and vcall thunks are not ported: no result, not a guess.
+// Guards and vcall thunks with a longer tail are not ported: no result, not a guess.
 func TestMsvcSpecialRejects(t *testing.T) {
 	for _, mangled := range []string{
 		"??_B?1??name0@name1@name2@@KAHPEBGAEAG@Z@51",
@@ -63,7 +63,12 @@ func TestMsvcSpecialRejects(t *testing.T) {
 }
 
 // Full is the rendered MDMang text; these match the oracle signatures exactly.
+// A 64-bit pointer inside a function-pointer argument is not rendered as Ghidra
+// does, so its Full stays empty while the name still resolves.
 func TestMsvcFullText(t *testing.T) {
+	if d := DemangleMsvc("?name0@@YAXP6AJPEAPEAVname1@@@ZP6AJPEAVname2@@PEAPEAUname3@@@ZP6AJ3@Z@Z"); d == nil || d.Name != "name0" || d.Full != "" {
+		t.Errorf("64-bit function-pointer argument: got %+v, want name0 with empty Full", d)
+	}
 	for _, c := range []struct{ mangled, full string }{
 		{"?FnName@@YAXAAH@Z", "void __cdecl FnName(int &) "},
 		{"?Bar3@Foo2b@@SAHXZ", "public static int __cdecl Foo2b::Bar3(void) "},

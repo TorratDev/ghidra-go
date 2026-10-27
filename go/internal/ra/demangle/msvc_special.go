@@ -6,8 +6,8 @@ import (
 )
 
 // special parses the "??_" special names: vftable (7), vbtable (8) and the RTTI
-// descriptors (R). Guards (B) and vcall thunks (9) are not ported yet, so they
-// give no result rather than a guessed name.
+// descriptors (R), and vcall thunks (9) with the one-letter tail. Guards (B)
+// are not ported yet and give no result rather than a guessed name.
 func (p *msvcParser) special() (*Demangled, error) {
 	p.i++ // the '_'
 	switch p.next() {
