@@ -71,6 +71,9 @@ func (p *msvcParser) symbol() (*Demangled, error) {
 	}
 	xtor := byte(0)
 	if p.take('?') {
+		if p.peek() == '_' {
+			return p.special()
+		}
 		xtor = p.next()
 		if xtor != '0' && xtor != '1' {
 			return nil, errMsvc
@@ -92,16 +95,16 @@ func (p *msvcParser) symbol() (*Demangled, error) {
 			d.Name = "~" + scope[0]
 		}
 		d.IsFunction = true
-		return d, p.function(kind)
+		return p.functionResult(d, kind, xtor != 0)
 	case xtor != 0:
 		return nil, errMsvc
 	case kind == 'Y' && len(scope) == 1:
 		d.IsFunction = true
-		return d, p.function('Y')
+		return p.functionResult(d, 'Y', false)
 	case (hasThis(kind) || kind == 'S') && len(scope) > 1:
 		d.Namespace = name.outermost()[:len(scope)-1]
 		d.IsFunction = true
-		return d, p.function(kind)
+		return p.functionResult(d, kind, false)
 	case kind == '3' && len(scope) == 1:
 		if _, err := p.mdDataTypeParser(); err != nil {
 			return nil, err
@@ -120,23 +123,86 @@ func hasThis(kind byte) bool {
 	return kind == 'Q' || kind == 'A' || kind == 'U'
 }
 
+// fnSig is a parsed function encoding. exact is false when the encoding has
+// a feature Full does not render yet (64-bit this, a cv-qualified this).
+type fnSig struct {
+	ret, cc string
+	noRet   bool // the encoding has no return type ('@'), as for "__cdecl f(int)"
+	args    []string
+	exact   bool
+}
+
 // function parses the encoding after a function's kind character: an optional
 // this-pointer modifier for non-static member functions, the calling
 // convention, the return type, the arguments, and the throw-specification
 // terminator 'Z'. Kind 'Y' is a global function, 'S' is static.
-func (p *msvcParser) function(kind byte) error {
+func (p *msvcParser) function(kind byte) (fnSig, error) {
+	sig := fnSig{exact: true}
 	if hasThis(kind) {
-		p.take('E') // 64-bit this pointer
-		if !strings.ContainsRune("ABCD", rune(p.next())) {
-			return errMsvc
+		if p.take('E') { // 64-bit this pointer
+			sig.exact = false
+		}
+		cv := p.next()
+		if !strings.ContainsRune("ABCD", rune(cv)) {
+			return sig, errMsvc
+		}
+		sig.exact = sig.exact && cv == 'A'
+	}
+	cc := p.next()
+	if !strings.ContainsRune("ABCEGI", rune(cc)) {
+		return sig, errMsvc
+	}
+	sig.cc = msvcCallingConventions[cc]
+	// shortcut: a member with calling convention 'A' prints __thiscall in Ghidra; Full stays empty for it until that is ported.
+	sig.exact = sig.exact && !(hasThis(kind) && cc == 'A')
+	sig.noRet = p.peek() == '@'
+	ret, err := p.returnType()
+	if err != nil {
+		return sig, err
+	}
+	sig.ret = ret
+	sig.args, err = p.mdArgumentsList()
+	return sig, err
+}
+
+// fnAccess is the MDMang prefix for each function kind.
+var fnAccess = map[byte]string{
+	'Y': "", 'Q': "public ", 'A': "private ", 'S': "public static ", 'U': "public virtual ",
+}
+
+// functionResult parses the function encoding and sets Full from the
+// rendered text: access, return type (none for constructors and destructors),
+// calling convention, qualified name, argument list.
+func (p *msvcParser) functionResult(d *Demangled, kind byte, xtor bool) (*Demangled, error) {
+	sig, err := p.function(kind)
+	if err != nil {
+		return nil, err
+	}
+	// shortcut: a function-pointer return type, a doubled const on a pointee, and
+	// a 64-bit pointer inside a function-pointer argument are not spelled as
+	// Ghidra does (it writes the return type inside-out and drops the outer
+	// __ptr64 there), so Full stays empty for them; upgrade when the pointer rules are ported.
+	if !sig.exact || strings.Contains(sig.ret, "(") || strings.Contains(strings.Join(sig.args, ","), "const const") || argPtr64InFnPtr(sig.args) {
+		return d, nil
+	}
+	qual := d.Name
+	if len(d.Namespace) > 0 {
+		qual = strings.Join(append(append([]string{}, d.Namespace...), d.Name), "::")
+	}
+	full := fnAccess[kind]
+	if !xtor && !sig.noRet {
+		full += sig.ret + " "
+	}
+	d.Full = full + sig.cc + " " + qual + "(" + strings.Join(sig.args, ",") + ") "
+	return d, nil
+}
+
+// argPtr64InFnPtr reports a 64-bit pointer inside a function-pointer argument.
+func argPtr64InFnPtr(args []string) bool {
+	for _, a := range args {
+		if strings.Contains(a, "(") && strings.Contains(a, "__ptr64") {
+			return true
 		}
 	}
-	if !strings.ContainsRune("ABCEGI", rune(p.next())) {
-		return errMsvc
-	}
-	if _, err := p.returnType(); err != nil {
-		return err
-	}
-	_, err := p.mdArgumentsList()
-	return err
+	return false
 }

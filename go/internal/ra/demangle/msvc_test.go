@@ -51,7 +51,7 @@ func TestMsvcTypeSpelling(t *testing.T) {
 		{"class in a namespace", "VFoo@Ns@@", "class Ns::Foo"},
 		{"bool", "_N", "bool"},
 		{"array", "$$BY0IA@H", "int [128]"},
-		{"pointer to function", "P6AHH@Z", "int (__cdecl*)(int)"},
+		{"pointer to function", "P6AHH@Z", "int (__cdecl *)(int)"},
 		{"64-bit pointer", "PEAH", "int * __ptr64"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
