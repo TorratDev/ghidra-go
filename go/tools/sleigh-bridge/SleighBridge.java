@@ -614,19 +614,12 @@ public class SleighBridge {
 			long next = e.addr + ins.getLength();
 			Facts f = facts(lang, ins, next, List.of());
 			// Rust's decode_in: a second pass with the entry's register state keeps
-			// only its memory accesses, plus the addresses it reads from seeded
-			// registers (uses); a reference the first pass has stays as it is.
+			// only its memory accesses; a reference the first pass has stays as it is.
 			Facts seeded = facts(lang, ins, next, e.state);
 			for (int i = 0; i < seeded.refAddrs.size(); i++) {
 				if (!seeded.refAccess.get(i).equals("address") && !f.refAddrs.contains(seeded.refAddrs.get(i))) {
 					f.refAddrs.add(seeded.refAddrs.get(i));
 					f.refAccess.add(seeded.refAccess.get(i));
-				}
-			}
-			for (long a : seeded.uses) {
-				if (!f.refAddrs.contains(a)) {
-					f.refAddrs.add(a);
-					f.refAccess.add("address");
 				}
 			}
 			sb.append(",\"indirect_via\":").append(f.via == null ? "null" : hex(f.via));
@@ -662,8 +655,6 @@ public class SleighBridge {
 		boolean indexedLoad;
 		/** The register constants known after the instruction. */
 		final List<Reg> state = new ArrayList<>();
-		/** Addresses held by the seeded registers the instruction reads. */
-		final List<Long> uses = new ArrayList<>();
 
 		void ref(long addr, String access) {
 			int i = refAddrs.indexOf(addr);
@@ -820,19 +811,6 @@ public class SleighBridge {
 		for (PcodeOp op : ins.getPcode(false)) {
 			Varnode out = op.getOutput();
 			int n = op.getNumInputs();
-			// A seeded register copied by the instruction (MOV rsi,rcx after LEA
-			// rcx,[rip+x]) holds an address: a reference at the use site, as Ghidra's
-			// ConstantPropagation has it. A memory access that has it wins in the merge.
-			// shortcut: only copies into a register count (not CMP's temporaries, ADD and
-			// CALL operands on a known constant, which the corpus does not reference);
-			// upgrade when measured.
-			if (op.getOpcode() == PcodeOp.COPY && out != null && !out.isUnique() && !isMemory(out)) {
-				Varnode in = op.getInput(0);
-				Long val = c.isSeeded(in) ? c.get(in) : null;
-				if (val != null && Long.compareUnsigned(val, 0x100) >= 0 && val != instNext && !f.uses.contains(val)) {
-					f.uses.add(val);
-				}
-			}
 			// Ghidra folds a memory operand at a constant address into a ram
 			// varnode: reading one is a load, writing one a store. The first
 			// input of BRANCH, CBRANCH and CALL is a destination, not a read.

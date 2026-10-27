@@ -437,11 +437,6 @@ func TestBridgeStateSeedsUseSiteRef(t *testing.T) {
 		!slices.Equal(r.Decoded.DataRefs, []DataRef{{0x2000, AccessRead}}) {
 		t.Errorf("load with the lea's state: %+v", r)
 	}
-	// mov rdi,rax at 0x1007 copies the address: a reference at the copy, not a read
-	if r := br.runIn(lang, []Insn{insn(0x1007, "4889c7")}, [][]Register{lea.Decoded.State})[0]; r.Err != nil ||
-		!slices.Equal(r.Decoded.DataRefs, []DataRef{{0x2000, AccessAddress}}) {
-		t.Errorf("copy of the lea's address: %+v", r)
-	}
 	if r := br.runIn(lang, []Insn{insn(0x1007, "8b00")}, [][]Register{{{Varnode{"nosuch", 0, 8}, 1}}})[0]; r.Err == nil ||
 		!strings.Contains(r.Err.Error(), "unknown address space") {
 		t.Errorf("state in an unknown space: %+v", r)
