@@ -29,6 +29,15 @@ func (n msvcName) String() string {
 func (p *msvcParser) mdQualifiedName() (msvcName, error) {
 	var n msvcName
 	for !p.take('@') {
+		if p.positionStartsWith("?$") {
+			// The template's arguments end with their own '@'; the loop's '@' closes the list.
+			t, _, err := p.templateName(false)
+			if err != nil {
+				return msvcName{}, err
+			}
+			n.parts = append(n.parts, t)
+			continue
+		}
 		backref := isDigit(p.peek())
 		name, err := p.component()
 		if err != nil {

@@ -66,8 +66,17 @@ func isDigit(c byte) bool {
 // symbol parses the whole symbol. Constructors and destructors come in as
 // "??0" and "??1"; their namespace keeps the class name as the last element.
 func (p *msvcParser) symbol() (*Demangled, error) {
-	if !p.take('?') || p.peek() == '$' {
+	if !p.take('?') {
 		return nil, errMsvc
+	}
+	if p.peek() == '$' {
+		// A bare template type, "?$Name@args", names the template instance.
+		p.i--
+		t, _, err := p.templateName(true)
+		if err != nil || p.i != len(p.s) {
+			return nil, errMsvc
+		}
+		return &Demangled{Scheme: Msvc, Name: t, Full: t}, nil
 	}
 	xtor := byte(0)
 	if p.take('?') {

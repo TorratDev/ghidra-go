@@ -31,7 +31,6 @@ func TestMsvcRejects(t *testing.T) {
 		"?fn@@YAHX@Z",
 		"?fn@@3PE6AHH@ZA",
 		"?fn@@3AE6AHH@ZA",
-		"?$S1@HH",
 		"?FnName@@YAXAAH@Z trailing",
 	} {
 		if d := DemangleMsvc(mangled); d != nil {
