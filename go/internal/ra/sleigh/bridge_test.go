@@ -442,3 +442,33 @@ func TestBridgeStateSeedsUseSiteRef(t *testing.T) {
 		t.Errorf("state in an unknown space: %+v", r)
 	}
 }
+
+// ADR gives the same constant as ADRP, and Ghidra puts the reference on the
+// instruction that reads the register: the ADR has none of its own, the load
+// through it has the read.
+func TestBridgeAdrHasNoDataRef(t *testing.T) {
+	const lang = "AARCH64:LE:64:v8A"
+	ctx := languageInfo(t, lang).InitialContext
+	insn := func(addr core.Addr, hexBytes string, state [][]Register) (Insn, [][]Register) {
+		b, err := hex.DecodeString(hexBytes)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return Insn{addr, b, ctx}, state
+	}
+	br := startBridge(t)
+	adrIn, _ := insn(0x1000, "00800010", nil) // adr x0, #0x1000: 0x2000
+	adr := br.run(lang, []Insn{adrIn})[0]
+	if adr.Err != nil || adr.Decoded.Mnemonic != "ADR" || len(adr.Decoded.DataRefs) != 0 || len(adr.Decoded.State) != 1 {
+		t.Fatalf("adr: %+v", adr)
+	}
+	reg := adr.Decoded.State[0]
+	if reg.Value != 0x2000 {
+		t.Fatalf("adr state: %+v", reg)
+	}
+	ldrIn, _ := insn(0x1004, "010040f9", nil) // ldr x1, [x0]
+	r := br.runIn(lang, []Insn{ldrIn}, [][]Register{adr.Decoded.State})[0]
+	if r.Err != nil || !slices.Equal(r.Decoded.DataRefs, []DataRef{{0x2000, AccessRead}}) {
+		t.Errorf("ldr through the adr's register: %+v", r)
+	}
+}

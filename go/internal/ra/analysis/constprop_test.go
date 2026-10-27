@@ -76,8 +76,23 @@ func TestConstantPropagationNeedsAStateDecoder(t *testing.T) {
 	}
 }
 
-// A constant is not carried into an instruction that is a jump target.
-func TestConstantPropagationResetsAtBlockStarts(t *testing.T) {
+// setRegTo sets reg to v, replacing the value it had.
+func setRegTo(reg string, v uint64) func(*RegState) []DataRef {
+	return func(s *RegState) []DataRef {
+		kept := (*s)[:0]
+		for _, rv := range *s {
+			if rv.Reg != reg {
+				kept = append(kept, rv)
+			}
+		}
+		*s = append(kept, RegValue{reg, v})
+		return nil
+	}
+}
+
+// The constant set before a conditional jump reaches its target on both
+// paths, so the load at the target sees it: the reference is at the load.
+func TestConstantPropagationCrossesBlockStarts(t *testing.T) {
 	rdiKey := regKey(rdi)
 	useReg := func(s *RegState) []DataRef {
 		for _, rv := range *s {
@@ -95,12 +110,37 @@ func TestConstantPropagationResetsAtBlockStarts(t *testing.T) {
 	}
 	p := newProg(0x1000, 0x100, seeds(0x1000), block(".data", 0x4000, 0x10, false))
 	a := Analyze(p, propLang(), sd, Options{})
-	// 0x1003 follows the conditional jump by fallthrough in the same block region
 	if refs := a.Insns[0x1003].D.DataRefs; len(refs) != 1 {
 		t.Errorf("fallthrough keeps the state: %v", refs)
 	}
+	if refs := a.Insns[0x1004].D.DataRefs; len(refs) != 1 || refs[0] != (DataRef{0x4000, AccessRead}) {
+		t.Errorf("join of agreeing predecessors keeps the constant: %v", refs)
+	}
+}
+
+// Where the predecessors disagree on the register, the join keeps no constant.
+func TestConstantPropagationDropsDisagreeingJoins(t *testing.T) {
+	rdiKey := regKey(rdi)
+	useReg := func(s *RegState) []DataRef {
+		for _, rv := range *s {
+			if rv.Reg == rdiKey {
+				return []DataRef{{rv.Value, AccessRead}}
+			}
+		}
+		return nil
+	}
+	sd := stateFake{
+		fake: fake{}.add(
+			ins(0x1000, 1, "MOV", fall), ins(0x1001, 2, "JZ", cjmp, 0x1004),
+			ins(0x1003, 1, "MOV", fall), ins(0x1004, 1, "MOV", fall), ins(0x1005, 1, "RET", ret)),
+		step: map[uint64]func(*RegState) []DataRef{
+			0x1000: setReg(rdiKey, 0x4000), 0x1003: setRegTo(rdiKey, 0x5000), 0x1004: useReg,
+		},
+	}
+	p := newProg(0x1000, 0x100, seeds(0x1000), block(".data", 0x4000, 0x2000, false))
+	a := Analyze(p, propLang(), sd, Options{})
 	if refs := a.Insns[0x1004].D.DataRefs; len(refs) != 0 {
-		t.Errorf("jump target must start with no state: %v", refs)
+		t.Errorf("join of disagreeing predecessors keeps a constant: %v", refs)
 	}
 }
 

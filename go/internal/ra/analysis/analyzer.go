@@ -724,107 +724,242 @@ func (a *analyzer) applyTable(at uint64, t *table) {
 
 func regKey(v sleigh.Varnode) string { return fmt.Sprintf("%s:%d:%d", v.Space, v.Offset, v.Size) }
 
+// noWriter marks a constant whose writers differ between the predecessors it
+// joins: no parameter reference is credited to it.
+const noWriter = ^uint64(0)
+
+// constVal is a register constant and the instruction that last wrote it.
+type constVal struct{ val, writer uint64 }
+
+// constState holds the register constants known at a program point.
+type constState map[string]constVal
+
+// meet intersects two predecessor states: a register keeps its constant where
+// both agree, and its writer where they agree too.
+func meet(a, b constState) constState {
+	out := constState{}
+	for k, v := range a {
+		if w, ok := b[k]; ok && w.val == v.val {
+			if w.writer != v.writer {
+				v.writer = noWriter
+			}
+			out[k] = v
+		}
+	}
+	return out
+}
+
+func (s constState) equal(t constState) bool {
+	if len(s) != len(t) {
+		return false
+	}
+	for k, v := range s {
+		if t[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
+// regValues is the state in the decoder's form, sorted by register key so the
+// bridge sees the same request for the same state.
+func (s constState) regValues() RegState {
+	keys := make([]string, 0, len(s))
+	for k := range s {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	out := make(RegState, 0, len(keys))
+	for _, k := range keys {
+		out = append(out, RegValue{k, s[k].val})
+	}
+	return out
+}
+
+// paramRef credits a constant pointer passed in a parameter register to the
+// instruction that set the register.
+type paramRef struct{ writer, val uint64 }
+
+// propagation is the forward must-analysis behind propagateConstants: the
+// constants known at each instruction are the intersection over its
+// predecessors, starting from unknown (the top) and iterated to a fixpoint.
+type propagation struct {
+	a       *analyzer
+	args    map[string]bool
+	preds   map[uint64][]uint64
+	entries map[uint64]bool       // function starts and points no flow reaches
+	outs    map[uint64]constState // state after each reached instruction
+	known   map[uint64]bool       // the outs entry exists
+	ins     map[uint64]constState // the state the last decode used
+	params  map[uint64][]paramRef // per call: the parameter constants it passes
+}
+
+// maxPropagationRounds bounds the fixpoint; a round that changes nothing ends it.
+const maxPropagationRounds = 1000
+
 // propagateConstants is a reduced ConstantPropagationAnalyzer: it re-decodes
-// every instruction with the register constants flowing in from its basic
-// block predecessor, so references through registers (ADRP+LDR, LEA+MOV [reg])
-// land on the instruction that uses them. State is reset at block starts and
-// after calls. It needs a StateDecoder (p-code constants); without one nothing
-// happens.
+// instructions with the register constants that flow into them over the
+// function's control flow, so references through registers (ADRP+LDR,
+// LEA+MOV [reg]) land on the instruction that uses them. Calls clear the state.
+// It needs a StateDecoder (p-code constants); without one nothing happens.
 func (a *analyzer) propagateConstants() {
 	if a.sdec == nil {
 		return
 	}
-	starts := map[uint64]bool{}
-	for addr := range a.funcs {
-		starts[addr] = true
+	p := &propagation{
+		a:       a,
+		args:    map[string]bool{},
+		preds:   map[uint64][]uint64{},
+		entries: map[uint64]bool{},
+		outs:    map[uint64]constState{},
+		known:   map[uint64]bool{},
+		ins:     map[uint64]constState{},
+		params:  map[uint64][]paramRef{},
 	}
-	for _, i := range a.insns {
-		for _, t := range i.D.Targets {
-			starts[t] = true
-		}
-	}
-	args := map[string]bool{}
 	for _, v := range a.lang.IntArgs {
-		args[regKey(v)] = true
+		p.args[regKey(v)] = true
 	}
-	var state RegState
-	writer := map[string]uint64{} // register -> instruction that last wrote its constant
-	var prevFT uint64
-	havePrevFT := false
-	type paramRef struct{ writer, val uint64 }
-	var params []paramRef
 	for _, addr := range a.sorted {
-		if starts[addr] || !havePrevFT || prevFT != addr {
-			state.clear()
-			clear(writer)
-		}
-		bytes := a.prog.Memory.BytesFrom(addr)
-		if bytes == nil {
-			continue
-		}
-		before := append(RegState(nil), state...)
-		nd, ok := a.sdec.DecodeIn(addr, bytes, &state)
-		if !ok {
-			state.clear()
-			clear(writer)
-			continue
-		}
-		for _, rv := range state {
-			if !containsReg(before, rv) {
-				writer[rv.Reg] = addr
-			}
-		}
-		for reg := range writer {
-			if !hasReg(state, reg) {
-				delete(writer, reg)
-			}
-		}
 		i := a.insns[addr]
-		refs := append([]DataRef(nil), nd.DataRefs...)
-		for _, t := range a.switches {
-			for _, r := range t.refs {
-				if r.from == addr && !hasRef(refs, r.to) {
-					refs = append(refs, DataRef{r.to, r.access})
+		if i.HasFT && a.insns[i.FT] != nil {
+			p.preds[i.FT] = append(p.preds[i.FT], addr)
+		}
+		if i.D.Flow != sleigh.FlowCall && i.D.Flow != sleigh.FlowCondCall {
+			for _, t := range i.D.Targets {
+				if a.insns[t] != nil {
+					p.preds[t] = append(p.preds[t], addr)
 				}
 			}
 		}
-		i.D.DataRefs = refs
-		if i.D.Flow == sleigh.FlowCall || i.D.Flow == sleigh.FlowCondCall {
-			// Constant pointers passed in parameter registers are referenced
-			// from the instruction that set them.
-			for _, rv := range state {
-				if w, ok := writer[rv.Reg]; ok && args[rv.Reg] && a.prog.Memory.IsMapped(rv.Value) {
-					params = append(params, paramRef{w, rv.Value})
-				}
-			}
-			state.clear()
-			clear(writer)
-		}
-		prevFT, havePrevFT = i.FT, i.HasFT
 	}
-	for _, p := range params {
-		if i := a.insns[p.writer]; i != nil && !hasRef(i.D.DataRefs, p.val) {
-			i.D.DataRefs = append(i.D.DataRefs, DataRef{p.val, AccessAddress})
+	for addr := range a.funcs {
+		p.entries[addr] = true
+	}
+	for _, addr := range a.sorted {
+		if len(p.preds[addr]) == 0 {
+			p.entries[addr] = true
+		}
+	}
+	// Code that no reached predecessor leads to starts from an empty state too.
+	for again := true; again; {
+		p.fixpoint()
+		again = false
+		for _, addr := range a.sorted {
+			if _, ok := p.in(addr); !ok && !p.entries[addr] {
+				p.entries[addr] = true
+				again = true
+			}
+		}
+	}
+	for _, addr := range sortedKeys(p.params) {
+		for _, pr := range p.params[addr] {
+			if i := a.insns[pr.writer]; i != nil && !hasRef(i.D.DataRefs, pr.val) {
+				i.D.DataRefs = append(i.D.DataRefs, DataRef{pr.val, AccessAddress})
+			}
 		}
 	}
 }
 
-func containsReg(s RegState, v RegValue) bool {
-	for _, x := range s {
-		if x == v {
-			return true
+func (p *propagation) fixpoint() {
+	for round := 0; round < maxPropagationRounds; round++ {
+		if !p.round() {
+			return
 		}
 	}
-	return false
+	p.a.logf("constant propagation did not converge after %d rounds; the last round's result is used", maxPropagationRounds)
 }
 
-func hasReg(s RegState, reg string) bool {
-	for _, x := range s {
-		if x.Reg == reg {
-			return true
+// round visits every instruction whose input state changed and reports
+// whether any output changed.
+func (p *propagation) round() bool {
+	changed := false
+	for _, addr := range p.a.sorted {
+		in, ok := p.in(addr)
+		if !ok {
+			continue
+		}
+		if seen, done := p.ins[addr]; done && seen.equal(in) {
+			continue
+		}
+		p.ins[addr] = in
+		out := p.step(addr, in)
+		if !p.known[addr] || !out.equal(p.outs[addr]) {
+			p.outs[addr] = out
+			p.known[addr] = true
+			changed = true
 		}
 	}
-	return false
+	return changed
+}
+
+// in is the state before addr: empty at an entry, else the intersection of
+// the predecessors reached so far. ok is false while none of them is.
+func (p *propagation) in(addr uint64) (constState, bool) {
+	if p.entries[addr] {
+		return constState{}, true
+	}
+	var acc constState
+	have := false
+	for _, pr := range p.preds[addr] {
+		if !p.known[pr] {
+			continue
+		}
+		if !have {
+			acc, have = p.outs[pr], true
+		} else {
+			acc = meet(acc, p.outs[pr])
+		}
+	}
+	return acc, have
+}
+
+// step decodes addr with state in, sets its data references, and returns the
+// state after it. Calls return the empty state: the callee may change anything.
+func (p *propagation) step(addr uint64, in constState) constState {
+	a := p.a
+	bytes := a.prog.Memory.BytesFrom(addr)
+	if bytes == nil {
+		return constState{}
+	}
+	state := in.regValues()
+	nd, ok := a.sdec.DecodeIn(addr, bytes, &state)
+	if !ok {
+		return constState{}
+	}
+	out := constState{}
+	for _, rv := range state {
+		w := addr
+		if old, ok := in[rv.Reg]; ok && old.val == rv.Value {
+			w = old.writer
+		}
+		out[rv.Reg] = constVal{rv.Value, w}
+	}
+	i := a.insns[addr]
+	refs := append([]DataRef(nil), nd.DataRefs...)
+	for _, t := range a.switches {
+		for _, r := range t.refs {
+			if r.from == addr && !hasRef(refs, r.to) {
+				refs = append(refs, DataRef{r.to, r.access})
+			}
+		}
+	}
+	i.D.DataRefs = refs
+	if i.D.Flow == sleigh.FlowCall || i.D.Flow == sleigh.FlowCondCall {
+		// Constant pointers passed in parameter registers are referenced from
+		// the instruction that set them.
+		p.params[addr] = nil
+		for _, rv := range state {
+			v := out[rv.Reg]
+			// shortcut: a value that is its writer's next address is a return address
+			// (SYSCALL leaves one in RCX), not a pointer; #41 tracks those refs.
+			if p.args[rv.Reg] && v.writer != noWriter && a.prog.Memory.IsMapped(v.val) &&
+				v.val != a.insns[v.writer].D.end() {
+				p.params[addr] = append(p.params[addr], paramRef{v.writer, v.val})
+			}
+		}
+		return constState{}
+	}
+	return out
 }
 
 // ---------------------------------------------------------------- functions
