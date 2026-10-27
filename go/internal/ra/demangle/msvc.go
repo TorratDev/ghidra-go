@@ -76,7 +76,7 @@ func (p *msvcParser) symbol() (*Demangled, error) {
 		}
 		xtor = p.next()
 		if xtor != '0' && xtor != '1' {
-			return nil, errMsvc
+			return p.operator(xtor)
 		}
 	}
 	name, err := p.mdQualifiedName()
