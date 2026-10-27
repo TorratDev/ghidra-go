@@ -241,6 +241,9 @@ func loadPE(f *pe.File, data []byte, path string) (*Program, error) {
 				}
 				addr := imageBase + rva
 				p.EntryPoints[addr] = true
+				if _, ok := p.Seeds[addr]; !ok && p.Memory.IsExecutable(addr) {
+					p.Seeds[addr] = SeedExport
+				}
 				p.Symbols = append(p.Symbols, LoadedSymbol{Addr: addr, Name: fmt.Sprintf("Ordinal_%d", uint64(base)+i), Source: core.SourceImported})
 				if n, ok := nameOf[i]; ok {
 					p.Symbols = append(p.Symbols, LoadedSymbol{Addr: addr, Name: n, IsFunction: p.Memory.IsExecutable(addr), Source: core.SourceImported})
@@ -334,7 +337,7 @@ func loadPE(f *pe.File, data []byte, path string) (*Program, error) {
 	}
 
 	if s := f.Section(".rdata"); s != nil {
-		p.IsRust = rustSignatures(data[s.Offset:min(fileLen, uint64(s.Offset)+uint64(s.Size))])
+		p.IsRust = rustSignatures(rawBytes(data, s.Offset, s.Size))
 	}
 	for a := range p.Seeds {
 		if !p.Memory.IsExecutable(a) {
@@ -391,4 +394,11 @@ func rustSignatures(d []byte) bool {
 		}
 	}
 	return false
+}
+
+// rawBytes is the file bytes of a section, clamped to the file: a malformed
+// PointerToRawData or SizeOfRawData gives a shorter (or empty) slice.
+func rawBytes(data []byte, off, size uint32) []byte {
+	start := min(uint64(off), uint64(len(data)))
+	return data[start:min(start+uint64(size), uint64(len(data)))]
 }

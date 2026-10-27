@@ -69,3 +69,20 @@ func TestPECorpus(t *testing.T) {
 		})
 	}
 }
+
+func TestPERawBytesBadOffset(t *testing.T) {
+	data := []byte("RUST_BACKTRACE")
+	for _, c := range []struct {
+		off, size uint32
+		want      string
+	}{
+		{0, 14, "RUST_BACKTRACE"},
+		{5, 1 << 30, "BACKTRACE"},
+		{uint32(len(data)) + 100, 10, ""},
+		{0xffffffff, 0xffffffff, ""},
+	} {
+		if got := string(rawBytes(data, c.off, c.size)); got != c.want {
+			t.Errorf("rawBytes(%#x, %#x) = %q, want %q", c.off, c.size, got, c.want)
+		}
+	}
+}
