@@ -36,6 +36,8 @@ func (p *msvcParser) mdQualifiedName() (msvcName, error) {
 				return msvcName{}, err
 			}
 			n.parts = append(n.parts, t)
+			// The whole "name<args>" is a name for later backreferences (MDReusableName).
+			p.addName(t)
 			continue
 		}
 		backref := isDigit(p.peek())
@@ -74,9 +76,7 @@ func (p *msvcParser) component() (string, error) {
 		return "", errMsvc
 	}
 	name := p.s[start:p.i]
-	if len(p.names) < 10 {
-		p.names = append(p.names, name)
-	}
+	p.addName(name)
 	return name, nil
 }
 
@@ -86,4 +86,11 @@ func isIdentStart(c byte) bool {
 
 func isIdent(c byte) bool {
 	return isIdentStart(c) || isDigit(c)
+}
+
+// addName adds a name to the name table for backreferences, up to ten entries.
+func (p *msvcParser) addName(name string) {
+	if len(p.names) < 10 {
+		p.names = append(p.names, name)
+	}
 }

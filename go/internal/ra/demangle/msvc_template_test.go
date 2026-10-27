@@ -1,6 +1,9 @@
 package demangle
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // Template names. Expected names, namespaces and Full are the Ghidra 12.1.4
 // MicrosoftDemangler results in rust-analysis/compare/expected/demangle/ghidra.json.gz.
@@ -32,5 +35,28 @@ func TestMsvcTemplateRejects(t *testing.T) {
 		if d := DemangleMsvc(mangled); d != nil {
 			t.Errorf("%s: got %q, want no result", mangled, d.Name)
 		}
+	}
+}
+
+// A template's arguments have their own name table, and the whole template is a
+// name for later backreferences in the outer qualified name (MDContext, MDReusableName).
+func TestMsvcTemplateBackrefs(t *testing.T) {
+	for _, c := range []struct{ mangled, ns, full string }{
+		{"?g@?$AAA@VBBB@@@1@QAEXXZ", "AAA<BBB>::AAA<BBB>", ""},
+		{"?g@?$AAA@V0@@@QAEXXZ", "AAA<AAA>", ""},
+		{"?g@?$AAA@VBBB@@@@QAEXV1@@Z", "AAA<BBB>", "(class AAA<BBB>)"},
+	} {
+		t.Run(c.mangled, func(t *testing.T) {
+			d := DemangleMsvc(c.mangled)
+			if d == nil {
+				t.Fatalf("%s: no result", c.mangled)
+			}
+			if d.Name != "g" || ns(d) != c.ns {
+				t.Errorf("got name %q ns %q; want g in %q", d.Name, ns(d), c.ns)
+			}
+			if c.full != "" && !strings.Contains(d.Full, c.full) {
+				t.Errorf("full %q lacks %q", d.Full, c.full)
+			}
+		})
 	}
 }

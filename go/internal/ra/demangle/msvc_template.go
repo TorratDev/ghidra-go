@@ -18,7 +18,13 @@ func (p *msvcParser) templateName(bare bool) (text string, empty bool, err error
 		return "", false, errMsvc
 	}
 	name := p.s[start : p.i-1]
+	// The arguments are parsed in a template context (MDContext TEMPLATE): their
+	// names and types are their own tables, which start with the template's base
+	// name, and the outer tables come back afterwards.
+	outerNames, outerTypes := p.names, p.types
+	p.names, p.types = []string{name}, nil
 	args, err := p.templateArgs(bare)
+	p.names, p.types = outerNames, outerTypes
 	if err != nil {
 		return "", false, err
 	}
