@@ -701,15 +701,7 @@ public class SleighBridge {
 			return null;
 		}
 
-		/** The varnodes whose values came from the seeded register state and are not overwritten yet. */
-		final List<Varnode> seeded = new ArrayList<>();
-
-		boolean isSeeded(Varnode v) {
-			return seeded.contains(v);
-		}
-
 		void set(Varnode out, Long val) {
-			seeded.removeIf(k -> overlaps(k, out));
 			for (int i = keys.size() - 1; i >= 0; i--) {
 				if (overlaps(keys.get(i), out)) {
 					keys.remove(i);
@@ -801,9 +793,7 @@ public class SleighBridge {
 		Facts f = new Facts();
 		Consts c = new Consts();
 		for (Reg r : seeds) {
-			Varnode v = seedVarnode(lang, r);
-			c.set(v, r.value);
-			c.seeded.add(v);
+			c.set(seedVarnode(lang, r), r.value);
 		}
 		String mnemonic = mnemonic(ins);
 		Register pcReg = lang.getProgramCounter();
