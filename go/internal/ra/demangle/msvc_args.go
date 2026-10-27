@@ -37,7 +37,9 @@ func (p *msvcParser) mdArgumentsList() ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		if strings.IndexByte(argBackrefKinds, kind) >= 0 {
+		// Every "$$" type joins the table too: "$$BY" (MDPointerRefDataType extends
+		// MDModifierType), "$$Q", "$$R" and "$$T".
+		if strings.IndexByte(argBackrefKinds, kind) >= 0 || kind == '$' {
 			p.types = append(p.types, arg)
 		}
 		args = append(args, arg)
