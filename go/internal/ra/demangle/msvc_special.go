@@ -10,15 +10,21 @@ import (
 // are not ported yet and give no result rather than a guessed name.
 func (p *msvcParser) special() (*Demangled, error) {
 	p.i++ // the '_'
-	switch p.next() {
+	code := p.next()
+	switch code {
 	case '7':
 		return p.vtable("`vftable'", '6')
 	case '8':
 		return p.vtable("`vbtable'", '7')
 	case '9':
-		return p.vcall()
+		return p.vcall("`vcall'")
+	case '_':
+		return p.doubleUnderscore()
 	case 'R':
 		return p.rtti()
+	}
+	if text, ok := msvcUnderscoreOperators[code]; ok {
+		return p.namedOperator(text)
 	}
 	return nil, errMsvc
 }
@@ -26,7 +32,7 @@ func (p *msvcParser) special() (*Demangled, error) {
 // vcall ports the vcall thunk "??_9 class $B index thunk A" (MDVCall). Only
 // the one-letter tail is ported; the thunk 'A' (near this, call and vfptr)
 // adds the "{index,{flat}}" modifier, other thunks give the bare name.
-func (p *msvcParser) vcall() (*Demangled, error) {
+func (p *msvcParser) vcall(leaf string) (*Demangled, error) {
 	cls, err := p.mdQualifiedName()
 	if err != nil {
 		return nil, err
@@ -44,7 +50,7 @@ func (p *msvcParser) vcall() (*Demangled, error) {
 		return nil, errMsvc
 	}
 	p.i++
-	name, spaced := "`vcall'", "`vcall'"
+	name, spaced := strings.ReplaceAll(leaf, " ", "_"), leaf
 	if thunk == 'A' {
 		name += fmt.Sprintf("{%d,{flat}}'_}'", index)
 		spaced += fmt.Sprintf("{%d,{flat}}' }'", index)
@@ -53,6 +59,41 @@ func (p *msvcParser) vcall() (*Demangled, error) {
 		Scheme: Msvc, Namespace: cls.outermost(), Name: name,
 		Full: "[thunk]:__thiscall " + cls.String() + "::" + spaced + "(void)",
 	}, nil
+}
+
+// msvcIteratorNames are the thunk names of "??__" followed by a letter, the
+// vcall shape with a different leaf.
+var msvcIteratorNames = map[byte]string{
+	'A': "`managed vector constructor iterator'", 'B': "`managed vector destructor iterator'",
+	'C': "`eh vector copy constructor iterator'", 'D': "`eh vector vbase copy constructor iterator'",
+	'G': "`vector copy constructor iterator'", 'H': "`vector vbase copy constructor iterator'",
+	'I': "`managed vector copy constructor iterator'",
+}
+
+// doubleUnderscore ports the "??__" names: the iterator thunks, and the dynamic
+// initializer "??__E" of a global variable.
+func (p *msvcParser) doubleUnderscore() (*Demangled, error) {
+	code := p.next()
+	if leaf, ok := msvcIteratorNames[code]; ok {
+		return p.vcall(leaf)
+	}
+	if code != 'E' {
+		return nil, errMsvc
+	}
+	v, err := p.mdQualifiedName()
+	if err != nil {
+		return nil, err
+	}
+	// shortcut: only a plain global variable; a member or a typed initializer ("??__E?var@@3HA") is not ported.
+	if len(v.parts) != 1 || p.next() != 'Y' {
+		return nil, errMsvc
+	}
+	d := &Demangled{Scheme: Msvc, Name: "`dynamic initializer for '" + v.parts[0] + "''", IsFunction: true}
+	res, err := p.functionResult(d, 'Y', false, false)
+	if err == nil && p.i != len(p.s) {
+		return nil, errMsvc
+	}
+	return finishOperator(res, err)
 }
 
 // vtable ports the vftable and vbtable names: the class, the type code that
