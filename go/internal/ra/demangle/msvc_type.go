@@ -22,7 +22,7 @@ var msvcUnderscoreTypes = map[byte]string{
 // msvcCallingConventions are the calling conventions MDMang prints.
 var msvcCallingConventions = map[byte]string{
 	'A': "__cdecl", 'B': "__cdecl", 'C': "__pascal", 'E': "__thiscall",
-	'G': "__stdcall", 'I': "__fastcall",
+	'G': "__stdcall", 'I': "__fastcall", 'M': "__clrcall",
 }
 
 // msvcCVQualifiers are the qualifiers on a pointee, written after its type.
@@ -37,6 +37,13 @@ func (p *msvcParser) mdDataTypeParser() (string, error) {
 	if p.positionStartsWith("$$BY") {
 		p.i += len("$$BY")
 		return p.mdArray()
+	}
+	if p.positionStartsWith("$$Q") || p.positionStartsWith("$$R") {
+		return p.mdRValueRef()
+	}
+	if p.positionStartsWith("$$T") {
+		p.i += len("$$T")
+		return "std::nullptr_t", nil
 	}
 	c := p.next()
 	if isDigit(c) {
@@ -161,4 +168,40 @@ func (p *msvcParser) returnType() (string, error) {
 		return "void", nil
 	}
 	return p.mdDataTypeParser()
+}
+
+// msvcRValueQuals are the cv letters of "$$Q" and "$$R" types, as they print.
+var msvcRValueQuals = map[byte]string{'A': "", 'B': "const", 'C': "volatile", 'D': "const volatile"}
+
+// mdRValueRef parses an rvalue reference: "$$Q" (or "$$R", whose base is
+// volatile), a cv letter, then the referenced type. It prints "T &&" with the
+// qualifiers after T, const before volatile, as Ghidra does.
+func (p *msvcParser) mdRValueRef() (string, error) {
+	p.i += len("$$")
+	kind := p.next()
+	cv, ok := msvcRValueQuals[p.next()]
+	if !ok {
+		return "", errMsvc
+	}
+	quals := map[string]bool{}
+	if kind == 'R' {
+		quals["volatile"] = true
+	}
+	for _, q := range strings.Fields(cv) {
+		quals[q] = true
+	}
+	var words []string
+	for _, q := range []string{"const", "volatile"} {
+		if quals[q] {
+			words = append(words, q)
+		}
+	}
+	pointee, err := p.mdDataTypeParser()
+	if err != nil {
+		return "", err
+	}
+	if len(words) == 0 {
+		return pointee + " &&", nil
+	}
+	return pointee + " " + strings.Join(words, " ") + " &&", nil
 }

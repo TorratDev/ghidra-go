@@ -33,11 +33,13 @@ func (p *msvcParser) mdArgumentsList() ([]string, error) {
 			return args, nil
 		}
 		kind := p.peek()
+		start := p.i
 		arg, err := p.mdDataTypeParser()
 		if err != nil {
 			return nil, err
 		}
-		if strings.IndexByte(argBackrefKinds, kind) >= 0 {
+		// "$$" types other than arrays join the table too; "$$T" is a backref target.
+		if strings.IndexByte(argBackrefKinds, kind) >= 0 || (kind == '$' && !strings.HasPrefix(p.s[start:], "$$BY")) {
 			p.types = append(p.types, arg)
 		}
 		args = append(args, arg)

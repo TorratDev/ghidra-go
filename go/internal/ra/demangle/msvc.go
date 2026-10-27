@@ -85,7 +85,24 @@ func (p *msvcParser) symbol() (*Demangled, error) {
 	}
 	scope := name.parts // innermost first; the leaf is scope[0]
 	d := &Demangled{Scheme: Msvc, Name: scope[0]}
+	// "$$F" marks a CLR function. Ghidra names it by its whole signature, so
+	// it is only resolved when that signature is rendered exactly.
+	clr := p.positionStartsWith("$$F")
+	if clr {
+		p.i += len("$$F")
+	}
+	// "$$J0" marks an extern "C" function: Full says so, the name is unchanged.
+	ext := p.positionStartsWith("$$J0")
+	if ext {
+		p.i += len("$$J0")
+	}
 	kind := p.next()
+	if clr && !hasThis(kind) && kind != 'S' && kind != 'Y' {
+		return nil, errMsvc
+	}
+	if ext && kind != 'Y' {
+		return nil, errMsvc
+	}
 	switch {
 	case xtor != 0 && (hasThis(kind) || kind == 'S'):
 		// A constructor or destructor is named after its class, and the
@@ -95,19 +112,27 @@ func (p *msvcParser) symbol() (*Demangled, error) {
 			d.Name = "~" + scope[0]
 		}
 		d.IsFunction = true
-		return p.functionResult(d, kind, xtor != 0)
+		return p.functionResult(d, kind, xtor != 0, clr)
 	case xtor != 0:
 		return nil, errMsvc
 	case kind == 'Y' && len(scope) == 1:
 		d.IsFunction = true
-		return p.functionResult(d, 'Y', false)
+		res, err := p.functionResult(d, 'Y', false, clr)
+		if err == nil && ext && res.Full != "" {
+			res.Full = `extern "C" ` + res.Full
+		}
+		return res, err
 	case (hasThis(kind) || kind == 'S') && len(scope) > 1:
 		d.Namespace = name.outermost()[:len(scope)-1]
 		d.IsFunction = true
-		return p.functionResult(d, kind, false)
+		return p.functionResult(d, kind, false, clr)
 	case kind == '3' && len(scope) == 1:
-		if _, err := p.mdDataTypeParser(); err != nil {
+		t, err := p.mdDataTypeParser()
+		if err != nil {
 			return nil, err
+		}
+		if t == "std::nullptr_t" {
+			return nil, errMsvc // Ghidra names such data by its type, not the symbol
 		}
 		if !p.take('A') && !p.take('B') {
 			return nil, errMsvc
@@ -128,6 +153,7 @@ func hasThis(kind byte) bool {
 type fnSig struct {
 	ret, cc string
 	noRet   bool // the encoding has no return type ('@'), as for "__cdecl f(int)"
+	ptr64   bool // a 64-bit this pointer: the signature ends in " __ptr64"
 	args    []string
 	exact   bool
 }
@@ -139,17 +165,20 @@ type fnSig struct {
 func (p *msvcParser) function(kind byte) (fnSig, error) {
 	sig := fnSig{exact: true}
 	if hasThis(kind) {
-		if p.take('E') { // 64-bit this pointer
-			sig.exact = false
+		sig.ptr64 = p.take('E')
+		cv := byte('A')
+		if sig.ptr64 && p.positionStartsWith("$AA") {
+			p.i += len("$AA") // the 64-bit non-const this pointer
+		} else {
+			cv = p.next()
 		}
-		cv := p.next()
 		if !strings.ContainsRune("ABCD", rune(cv)) {
 			return sig, errMsvc
 		}
 		sig.exact = sig.exact && cv == 'A'
 	}
 	cc := p.next()
-	if !strings.ContainsRune("ABCEGI", rune(cc)) {
+	if !strings.ContainsRune("ABCEGIM", rune(cc)) {
 		return sig, errMsvc
 	}
 	sig.cc = msvcCallingConventions[cc]
@@ -165,6 +194,12 @@ func (p *msvcParser) function(kind byte) (fnSig, error) {
 	return sig, err
 }
 
+// fnAccessColon is the prefix of a CLR signature, which has a colon after the
+// access keyword.
+var fnAccessColon = map[byte]string{
+	'Y': "", 'Q': "public: ", 'A': "private: ", 'S': "public: static ", 'U': "public: virtual ",
+}
+
 // fnAccess is the MDMang prefix for each function kind.
 var fnAccess = map[byte]string{
 	'Y': "", 'Q': "public ", 'A': "private ", 'S': "public static ", 'U': "public virtual ",
@@ -173,7 +208,7 @@ var fnAccess = map[byte]string{
 // functionResult parses the function encoding and sets Full from the
 // rendered text: access, return type (none for constructors and destructors),
 // calling convention, qualified name, argument list.
-func (p *msvcParser) functionResult(d *Demangled, kind byte, xtor bool) (*Demangled, error) {
+func (p *msvcParser) functionResult(d *Demangled, kind byte, xtor, clr bool) (*Demangled, error) {
 	sig, err := p.function(kind)
 	if err != nil {
 		return nil, err
@@ -183,18 +218,42 @@ func (p *msvcParser) functionResult(d *Demangled, kind byte, xtor bool) (*Demang
 	// Ghidra does (it writes the return type inside-out and drops the outer
 	// __ptr64 there), so Full stays empty for them; upgrade when the pointer rules are ported.
 	if !sig.exact || strings.Contains(sig.ret, "(") || strings.Contains(strings.Join(sig.args, ","), "const const") || argPtr64InFnPtr(sig.args) {
+		if clr {
+			return nil, errMsvc // a name Ghidra gives from its signature is not guessed
+		}
 		return d, nil
 	}
 	qual := d.Name
 	if len(d.Namespace) > 0 {
 		qual = strings.Join(append(append([]string{}, d.Namespace...), d.Name), "::")
 	}
+	if clr {
+		// Ghidra names a CLR function by its whole signature, with spaces as
+		// underscores, and gives it no namespace.
+		full := fnAccessColon[kind]
+		if !xtor && !sig.noRet {
+			full += sig.ret + " "
+		}
+		full += sig.cc + " " + qual + "(" + strings.Join(sig.args, ",") + ")" + ptr64Suffix(sig)
+		d.Name = strings.ReplaceAll(full, " ", "_")
+		d.Namespace = nil
+		d.Full = full
+		return d, nil
+	}
 	full := fnAccess[kind]
 	if !xtor && !sig.noRet {
 		full += sig.ret + " "
 	}
-	d.Full = full + sig.cc + " " + qual + "(" + strings.Join(sig.args, ",") + ") "
+	d.Full = full + sig.cc + " " + qual + "(" + strings.Join(sig.args, ",") + ")" + ptr64Suffix(sig) + " "
 	return d, nil
+}
+
+// ptr64Suffix is the " __ptr64" that ends a signature with a 64-bit this pointer.
+func ptr64Suffix(sig fnSig) string {
+	if sig.ptr64 {
+		return " __ptr64"
+	}
+	return ""
 }
 
 // argPtr64InFnPtr reports a 64-bit pointer inside a function-pointer argument.
