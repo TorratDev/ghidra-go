@@ -1,6 +1,9 @@
 package demangle
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // The "$$" modifiers. Expected name, namespace and Full are the Ghidra 12.1.4
 // MicrosoftDemangler results in rust-analysis/compare/expected/demangle/ghidra.json.gz.
@@ -25,6 +28,21 @@ func TestMsvcModifiers(t *testing.T) {
 				t.Errorf("got name %q ns %q full %q; want %q %q %q", d.Name, ns(d), d.Full, c.name, c.ns, c.full)
 			}
 		})
+	}
+}
+
+// A "$$BY" argument joins the type table, so a later digit can name it.
+func TestMsvcArrayArgBackref(t *testing.T) {
+	p := &msvcParser{s: "$$BY01HPAH0@Z"}
+	args, err := p.mdArgumentsList()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"int [2]", "int *", "int [2]"}; strings.Join(args, ",") != strings.Join(want, ",") {
+		t.Errorf("got %q, want %q", args, want)
+	}
+	if d := DemangleMsvc("?f@@YAX$$BY01HPAH0@Z"); d == nil || d.Full != "void __cdecl f(int [2],int *,int [2]) " {
+		t.Errorf("full %q, want the array backref rendered", fullOf(d))
 	}
 }
 
