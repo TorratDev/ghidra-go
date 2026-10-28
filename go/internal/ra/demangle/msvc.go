@@ -40,6 +40,17 @@ type msvcParser struct {
 	// asArg is set while template arguments are parsed: Ghidra prints a class,
 	// struct or union there without its keyword.
 	asArg bool
+	// tparams is the template-parameter backref table. Ghidra shares one table
+	// across the template contexts of a symbol (MDContext TEMPLATE copies the
+	// reference), so it is per symbol and not restored after a template.
+	tparams []string
+	// backrefs counts name backreferences parsed so far.
+	backrefs int
+	// inPointer is set while a pointer's pointee is parsed.
+	inPointer bool
+	// unrendered is set when an encoding was parsed but its text is not ported
+	// (a pointer to a member function); the name is still certain, Full is not.
+	unrendered bool
 }
 
 func (p *msvcParser) peek() byte {
@@ -101,6 +112,9 @@ func (p *msvcParser) symbol() (*Demangled, error) {
 			return p.special()
 		}
 		xtor = p.next()
+		if xtor == '$' {
+			return p.functionTemplate()
+		}
 		if xtor != '0' && xtor != '1' {
 			return p.operator(xtor)
 		}
@@ -239,6 +253,12 @@ func (p *msvcParser) functionResult(d *Demangled, kind byte, xtor, clr bool) (*D
 	if err != nil {
 		return nil, err
 	}
+	if p.unrendered {
+		if clr {
+			return nil, errMsvc
+		}
+		return d, nil
+	}
 	// shortcut: a function-pointer return type, a doubled const on a pointee, and
 	// a 64-bit pointer inside a function-pointer argument are not spelled as
 	// Ghidra does (it writes the return type inside-out and drops the outer
@@ -260,7 +280,7 @@ func (p *msvcParser) functionResult(d *Demangled, kind byte, xtor, clr bool) (*D
 		if !xtor && !sig.noRet {
 			full += sig.ret + " "
 		}
-		full += sig.cc + " " + qual + "(" + strings.Join(sig.args, ",") + ")" + ptr64Suffix(sig)
+		full += sig.cc + " " + qual + "(" + argsText(sig.args) + ")" + ptr64Suffix(sig)
 		d.Name = strings.ReplaceAll(full, " ", "_")
 		d.Namespace = nil
 		d.Full = full
@@ -270,7 +290,7 @@ func (p *msvcParser) functionResult(d *Demangled, kind byte, xtor, clr bool) (*D
 	if !xtor && !sig.noRet {
 		full += sig.ret + " "
 	}
-	d.Full = full + sig.cc + " " + qual + "(" + strings.Join(sig.args, ",") + ")" + ptr64Suffix(sig) + " "
+	d.Full = full + sig.cc + " " + qual + "(" + argsText(sig.args) + ")" + ptr64Suffix(sig) + " "
 	return d, nil
 }
 
@@ -290,6 +310,14 @@ func argPtr64InFnPtr(args []string) bool {
 		}
 	}
 	return false
+}
+
+// argsText is an argument list as Ghidra writes it: an empty list is "void".
+func argsText(args []string) string {
+	if len(args) == 0 {
+		return "void"
+	}
+	return strings.Join(args, ",")
 }
 
 // spaceStrip is DemanglerUtil.stripSuperfluousSignatureSpaces: no space before

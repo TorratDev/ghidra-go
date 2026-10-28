@@ -29,8 +29,6 @@ func TestMsvcTemplateNames(t *testing.T) {
 // template instances that take them give no result.
 func TestMsvcTemplateRejects(t *testing.T) {
 	for _, mangled := range []string{
-		"??0?$AAA@@@QEAA@P8BBB@@EAAPEAVCCC@@XZ@Z",
-		"??0?$AAA@VBBB@@VCCC@@@@QEAA@P8BBB@@EAAPEAVCCC@@XZ@Z",
 		"?$AAA@P6AXXZ",
 		"?$AAA@PAP6AXXZ",
 		"?$AAA@$$BY0A@P6AXXZ",
@@ -107,5 +105,24 @@ func TestMsvcTemplateSpacing(t *testing.T) {
 	// A bare template's Full is the normalized name, as in the oracle.
 	if d := DemangleMsvc("?$name1@P$AAVname2@name3@@"); d == nil || d.Full != "name1<name3::name2_^>" || d.Name != d.Full {
 		t.Errorf("bare template: got %+v", d)
+	}
+}
+
+// A pointer to a member function in a function's parameters leaves the name
+// certain (the oracle names are these) and Full empty, as its text is not ported.
+func TestMsvcMemberPointerParams(t *testing.T) {
+	for _, c := range []struct{ mangled, name, ns string }{
+		{"??0?$AAA@@@QEAA@P8BBB@@EAAPEAVCCC@@XZ@Z", "AAA<>", "AAA<>"},
+		{"??0?$AAA@VBBB@@VCCC@@@@QEAA@P8BBB@@EAAPEAVCCC@@XZ@Z", "AAA<BBB,CCC>", "AAA<BBB,CCC>"},
+	} {
+		t.Run(c.mangled, func(t *testing.T) {
+			d := DemangleMsvc(c.mangled)
+			if d == nil {
+				t.Fatalf("%s: no result", c.mangled)
+			}
+			if d.Name != c.name || ns(d) != c.ns || d.Full != "" {
+				t.Errorf("got name %q ns %q full %q; want %q %q empty", d.Name, ns(d), d.Full, c.name, c.ns)
+			}
+		})
 	}
 }

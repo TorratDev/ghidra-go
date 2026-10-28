@@ -86,6 +86,9 @@ func (p *msvcParser) mdDataTypeParser() (string, error) {
 // the pointee. A pointer to a function has no cv letter: "P6". The 64-bit
 // marker 'E' renders as " __ptr64".
 func (p *msvcParser) mdPointer(kind byte) (string, error) {
+	if kind == 'P' && p.peek() == '8' {
+		return p.memberFunctionPointer()
+	}
 	if kind == 'P' && p.positionStartsWith("$AA") {
 		// In a template argument this is a CLR handle, "name ^"; in a function's
 		// arguments Ghidra prints a plain pointer.
@@ -107,7 +110,9 @@ func (p *msvcParser) mdPointer(kind byte) (string, error) {
 	if !ok {
 		return "", errMsvc
 	}
+	p.inPointer = true
 	pointee, err := p.mdDataTypeParser()
+	p.inPointer = false
 	if err != nil {
 		return "", err
 	}
@@ -122,11 +127,16 @@ func (p *msvcParser) mdPointer(kind byte) (string, error) {
 
 // mdNamedType parses a class, struct, union or enum name after its keyword.
 func (p *msvcParser) mdNamedType(keyword string) (string, error) {
+	start := p.backrefs
 	name, err := p.mdQualifiedName()
 	if err != nil {
 		return "", err
 	}
 	if p.asArg {
+		// shortcut: a pointee class named through name backreferences keeps its keyword in Ghidra's text; reject it rather than guess.
+		if p.backrefs != start && p.inPointer {
+			return "", errMsvc
+		}
 		return name.String(), nil
 	}
 	return keyword + " " + name.String(), nil
@@ -224,4 +234,30 @@ func (p *msvcParser) mdRValueRef() (string, error) {
 		return pointee + " &&", nil
 	}
 	return pointee + " " + strings.Join(words, " ") + " &&", nil
+}
+
+// memberFunctionPointer parses "P8 class <cv> <cc> <ret> <args>" (a pointer to a
+// member function). Its spelling is not ported, so it is parsed for its extent
+// and marked: a function that has one keeps its name and loses Full, and a
+// template argument that has one is rejected.
+func (p *msvcParser) memberFunctionPointer() (string, error) {
+	p.i++ // the '8'
+	if _, err := p.mdQualifiedName(); err != nil {
+		return "", err
+	}
+	p.take('E') // 64-bit this
+	if !strings.ContainsRune("ABCD", rune(p.next())) {
+		return "", errMsvc
+	}
+	if !strings.ContainsRune("ABCEGIM", rune(p.next())) {
+		return "", errMsvc
+	}
+	if _, err := p.returnType(); err != nil {
+		return "", err
+	}
+	if _, err := p.mdArgumentsList(); err != nil {
+		return "", err
+	}
+	p.unrendered = true
+	return "(member function pointer)", nil
 }
