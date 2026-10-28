@@ -7,8 +7,8 @@ import (
 )
 
 // special parses the "??_" special names: vftable (7), vbtable (8) and the RTTI
-// descriptors (R), and vcall thunks (9) with the one-letter tail. Guards (B)
-// are not ported yet and give no result rather than a guessed name.
+// descriptors (R), vcall thunks (9) with the one-letter tail, and the guard (B)
+// of a static local.
 func (p *msvcParser) special() (*Demangled, error) {
 	p.i++ // the '_'
 	code := p.next()
@@ -23,6 +23,8 @@ func (p *msvcParser) special() (*Demangled, error) {
 		return p.doubleUnderscore()
 	case 'R':
 		return p.rtti()
+	case 'B':
+		return p.localGuard()
 	}
 	if text, ok := msvcUnderscoreOperators[code]; ok {
 		return p.namedOperator(text)

@@ -52,7 +52,6 @@ func TestMsvcSpecialNames(t *testing.T) {
 // Guards and vcall thunks with a longer tail are not ported: no result, not a guess.
 func TestMsvcSpecialRejects(t *testing.T) {
 	for _, mangled := range []string{
-		"??_B?1??name0@name1@name2@@KAHPEBGAEAG@Z@51",
 		"??_9name0@@$BBII@I0A",
 		"??_7name0@name1@@6B",
 	} {

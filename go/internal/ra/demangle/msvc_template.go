@@ -183,7 +183,7 @@ func (p *msvcParser) templateArgs(bare bool) (string, error) {
 			if err := add(c, t); err != nil {
 				return "", err
 			}
-		case c == 'X' || c == '$' || c == 'Z':
+		case c == '$' || c == 'Z':
 			return "", errMsvc
 		case c == 'V' || c == 'U' || c == 'T':
 			p.i++
