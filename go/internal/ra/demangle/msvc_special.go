@@ -2,6 +2,7 @@ package demangle
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -204,6 +205,20 @@ func (p *msvcParser) signedNumber() (int, error) {
 		v = -v
 	}
 	return v, err
+}
+
+// signedText is MDSignedEncodedNumber's text: the number, with a '-' when the
+// encoding is negative, so "-0" keeps its sign.
+func (p *msvcParser) signedText() (string, error) {
+	neg := p.take('?')
+	v, err := p.mdEncodedNumber()
+	if err != nil {
+		return "", err
+	}
+	if neg {
+		return "-" + strconv.Itoa(v), nil
+	}
+	return strconv.Itoa(v), nil
 }
 
 // optionalQualifiedName is a qualified name that may be empty: a lone '@'.

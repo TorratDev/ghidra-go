@@ -27,7 +27,19 @@ func (n msvcName) String() string {
 // empty component that closes the list. A simple name is closed by '@'; a
 // backreference stands alone. Each new simple name joins the name table.
 func (p *msvcParser) mdQualifiedName() (msvcName, error) {
-	var n msvcName
+	n, err := p.qualifiedNameFrom(msvcName{})
+	if err != nil {
+		return msvcName{}, err
+	}
+	if len(n.parts) == 0 {
+		return msvcName{}, errMsvc
+	}
+	return n, nil
+}
+
+// qualifiedNameFrom continues a qualified name after the components in n, up to
+// the '@' that closes the list.
+func (p *msvcParser) qualifiedNameFrom(n msvcName) (msvcName, error) {
 	for !p.take('@') {
 		if p.positionStartsWith("?$") {
 			// The template's arguments end with their own '@'; the loop's '@' closes the list.
@@ -41,6 +53,9 @@ func (p *msvcParser) mdQualifiedName() (msvcName, error) {
 			continue
 		}
 		backref := isDigit(p.peek())
+		if backref {
+			p.backrefs++
+		}
 		name, err := p.component()
 		if err != nil {
 			return msvcName{}, err
@@ -49,9 +64,6 @@ func (p *msvcParser) mdQualifiedName() (msvcName, error) {
 			return msvcName{}, errMsvc
 		}
 		n.parts = append(n.parts, name)
-	}
-	if len(n.parts) == 0 {
-		return msvcName{}, errMsvc
 	}
 	return n, nil
 }
