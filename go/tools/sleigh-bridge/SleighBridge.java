@@ -881,7 +881,7 @@ public class SleighBridge {
 			}
 			if (val != null && !out.isUnique() && !isMemory(out) && immediate) {
 				long v = mask(val, out.getSize());
-				if (!out.equals(pc) && v != instNext && !mnemonic.startsWith("ADRP")) {
+				if (!out.equals(pc) && v != instNext && !mnemonic.startsWith("ADR")) {
 					f.ref(v, "address");
 				}
 			}
