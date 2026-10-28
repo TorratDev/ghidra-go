@@ -86,6 +86,19 @@ func (p *msvcParser) mdDataTypeParser() (string, error) {
 // the pointee. A pointer to a function has no cv letter: "P6". The 64-bit
 // marker 'E' renders as " __ptr64".
 func (p *msvcParser) mdPointer(kind byte) (string, error) {
+	if kind == 'P' && p.positionStartsWith("$AA") {
+		// In a template argument this is a CLR handle, "name ^"; in a function's
+		// arguments Ghidra prints a plain pointer.
+		p.i += len("$AA")
+		pointee, err := p.mdDataTypeParser()
+		if err != nil {
+			return "", err
+		}
+		if p.asArg {
+			return pointee + " ^", nil
+		}
+		return pointee + " *", nil
+	}
 	ptr64 := p.take('E')
 	if kind == 'P' && !ptr64 && p.take('6') {
 		return p.mdFunctionType()
@@ -113,6 +126,9 @@ func (p *msvcParser) mdNamedType(keyword string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if p.asArg {
+		return name.String(), nil
+	}
 	return keyword + " " + name.String(), nil
 }
 
@@ -132,7 +148,11 @@ func (p *msvcParser) mdArray() (string, error) {
 			return "", err
 		}
 	}
+	// An element keeps its class keyword even inside a template argument.
+	asArg := p.asArg
+	p.asArg = false
 	elem, err := p.mdDataTypeParser()
+	p.asArg = asArg
 	if err != nil {
 		return "", err
 	}

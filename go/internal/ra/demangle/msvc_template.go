@@ -1,6 +1,10 @@
 package demangle
 
-import "strings"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
 
 // templateName parses "?$name" and its arguments, and returns "name<args>",
 // as Ghidra prints a template name. A name in a qualified name is closed by its
@@ -21,10 +25,10 @@ func (p *msvcParser) templateName(bare bool) (text string, empty bool, err error
 	// The arguments are parsed in a template context (MDContext TEMPLATE): their
 	// names and types are their own tables, which start with the template's base
 	// name, and the outer tables come back afterwards.
-	outerNames, outerTypes := p.names, p.types
-	p.names, p.types = []string{name}, nil
+	outerNames, outerTypes, outerArg := p.names, p.types, p.asArg
+	p.names, p.types, p.asArg = []string{name}, nil, true
 	args, err := p.templateArgs(bare)
-	p.names, p.types = outerNames, outerTypes
+	p.names, p.types, p.asArg = outerNames, outerTypes, outerArg
 	if err != nil {
 		return "", false, err
 	}
@@ -40,6 +44,15 @@ func (p *msvcParser) templateName(bare bool) (text string, empty bool, err error
 // (pointers, digit backreferences, '$' and void) is rejected, not guessed.
 func (p *msvcParser) templateArgs(bare bool) (string, error) {
 	var args []string
+	// add appends an argument. A function type inside one, under a pointer or
+	// a "$$" type, is spelled with the unported spacing, so it is rejected.
+	add := func(t string) error {
+		if strings.Contains(t, "(") {
+			return errMsvc
+		}
+		args = append(args, t)
+		return nil
+	}
 	for {
 		c := p.peek()
 		switch {
@@ -51,6 +64,50 @@ func (p *msvcParser) templateArgs(bare bool) (string, error) {
 				return "", errMsvc
 			}
 			return strings.Join(args, ","), nil
+		case c == '$' && p.s[min(p.i+1, len(p.s)-1)] == '0' && p.i+1 < len(p.s):
+			// MDTemplateConstant "$0": an integer, a signed encoded number.
+			p.i += len("$0")
+			v, err := p.signedNumber()
+			if err != nil {
+				return "", err
+			}
+			if err := add(strconv.Itoa(v)); err != nil {
+				return "", err
+			}
+		case c == '$' && p.peek1() == '$':
+			// "$$" types: arrays "$$BY", rvalue references and nullptr, as in the arguments of a function.
+			t, err := p.mdDataTypeParser()
+			if err != nil {
+				return "", err
+			}
+			if err := add(t); err != nil {
+				return "", err
+			}
+		case c == '$' && p.peek1() == 'F':
+			// MDTemplateConstant "$F": two signed numbers, "{a,b}".
+			p.i += len("$F")
+			a, err := p.signedNumber()
+			if err != nil {
+				return "", err
+			}
+			b, err := p.signedNumber()
+			if err != nil {
+				return "", err
+			}
+			if err := add(fmt.Sprintf("{%d,%d}", a, b)); err != nil {
+				return "", err
+			}
+		case (c == 'P' || c == 'Q') && p.peek1() == '6':
+			// A function pointer: Ghidra's spacing of its signature is not ported.
+			return "", errMsvc
+		case c == 'P' || c == 'Q' || c == 'R' || c == 'A':
+			t, err := p.mdDataTypeParser()
+			if err != nil {
+				return "", err
+			}
+			if err := add(t); err != nil {
+				return "", err
+			}
 		case c == 'X' || c == '$' || c == '?' || c == 'Z':
 			return "", errMsvc
 		case c == 'V' || c == 'U' || c == 'T':
@@ -59,13 +116,17 @@ func (p *msvcParser) templateArgs(bare bool) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			args = append(args, n.String())
+			if err := add(n.String()); err != nil {
+				return "", err
+			}
 		case c == '_' || msvcBasicTypes[c] != "":
 			t, err := p.mdDataTypeParser()
 			if err != nil {
 				return "", err
 			}
-			args = append(args, t)
+			if err := add(t); err != nil {
+				return "", err
+			}
 		default:
 			return "", errMsvc
 		}
