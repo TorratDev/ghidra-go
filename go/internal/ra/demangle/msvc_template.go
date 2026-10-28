@@ -187,6 +187,10 @@ func (p *msvcParser) templateArgs(bare bool) (string, error) {
 			return "", errMsvc
 		case c == 'V' || c == 'U' || c == 'T':
 			p.i++
+			// shortcut: a class argument whose first component is "?A" makes Ghidra throw, so it is rejected; upgrade if Ghidra's rule is ported.
+			if p.positionStartsWith("?A") {
+				return "", errMsvc
+			}
 			n, err := p.mdQualifiedName()
 			if err != nil {
 				return "", err
