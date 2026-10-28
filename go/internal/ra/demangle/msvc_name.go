@@ -1,6 +1,10 @@
 package demangle
 
-import "strings"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
 
 // msvcName is a qualified name. parts holds the components innermost first,
 // as they are parsed.
@@ -52,6 +56,14 @@ func (p *msvcParser) qualifiedNameFrom(n msvcName) (msvcName, error) {
 			n.local = true
 			continue
 		}
+		if p.positionStartsWith("?A") {
+			a, err := p.anonymous()
+			if err != nil {
+				return msvcName{}, err
+			}
+			n.parts = append(n.parts, a)
+			continue
+		}
 		if p.positionStartsWith("?$") {
 			// The template's arguments end with their own '@'; the loop's '@' closes the list.
 			t, _, err := p.templateName(false)
@@ -91,6 +103,16 @@ func (p *msvcParser) component() (string, error) {
 		}
 		return p.names[idx], nil
 	}
+	name, err := p.identifier()
+	if err != nil {
+		return "", err
+	}
+	p.addName(name)
+	return name, nil
+}
+
+// identifier reads a plain identifier at the position.
+func (p *msvcParser) identifier() (string, error) {
 	start := p.i
 	for isIdent(p.peek()) {
 		p.i++
@@ -98,7 +120,27 @@ func (p *msvcParser) component() (string, error) {
 	if p.i == start || !isIdentStart(p.s[start]) {
 		return "", errMsvc
 	}
-	name := p.s[start:p.i]
+	return p.s[start:p.i], nil
+}
+
+// anonymous parses a "?A" qualifier, which Ghidra's MDQualifier keeps as the
+// fragment "A...": "?A0x<hex>@" is an anonymous namespace, named "_anon_" and
+// the number as 8 uppercase hex digits (MDMangUtils.createStandardAnonymousNamespaceNode).
+// Any other "?Aname@" is the name "Aname". It joins the name table either way.
+func (p *msvcParser) anonymous() (string, error) {
+	p.i++ // the '?'; the 'A' stays part of the fragment
+	raw, err := p.identifier()
+	if err != nil || !p.take('@') {
+		return "", errMsvc
+	}
+	name := raw
+	if hex, ok := strings.CutPrefix(raw, "A0x"); ok {
+		v, err := strconv.ParseUint(hex, 16, 64)
+		if err != nil {
+			return "", errMsvc
+		}
+		name = fmt.Sprintf("_anon_%08X", v)
+	}
 	p.addName(name)
 	return name, nil
 }

@@ -25,6 +25,8 @@ func (p *msvcParser) special() (*Demangled, error) {
 		return p.rtti()
 	case 'B':
 		return p.localGuard()
+	case 'C':
+		return p.stringLiteral()
 	}
 	if text, ok := msvcUnderscoreOperators[code]; ok {
 		return p.namedOperator(text)

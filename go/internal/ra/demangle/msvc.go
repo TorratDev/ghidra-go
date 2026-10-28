@@ -96,6 +96,9 @@ func (p *msvcParser) symbol() (*Demangled, error) {
 	if !p.take('?') {
 		return nil, errMsvc
 	}
+	if p.take('@') {
+		return p.codeView()
+	}
 	if p.peek() == '$' {
 		if leaf, ok := p.staticLocalLeaf(); ok {
 			return p.staticLocalSymbol(leaf)
@@ -143,7 +146,8 @@ func (p *msvcParser) symbol() (*Demangled, error) {
 	if clr && !hasThis(kind) && kind != 'S' && kind != 'Y' {
 		return nil, errMsvc
 	}
-	if ext && kind != 'Y' {
+	// extern "C" is a global function's; a namespace function is not.
+	if ext && (kind != 'Y' || len(scope) > 1) {
 		return nil, errMsvc
 	}
 	// A local scope is only ported for a static local's data.
@@ -169,16 +173,38 @@ func (p *msvcParser) symbol() (*Demangled, error) {
 			res.Full = `extern "C" ` + res.Full
 		}
 		return res, err
-	case (hasThis(kind) || kind == 'S' || kind == 'K' || kind == 'C') && len(scope) > 1:
+	case (hasThis(kind) || kind == 'S' || kind == 'K' || kind == 'C' || kind == 'Y') && len(scope) > 1:
 		d.Namespace = name.outermost()[:len(scope)-1]
 		d.IsFunction = true
 		return p.functionResult(d, kind, false, clr)
-	case kind == '3' && len(scope) == 1:
+	case kind == '3':
+		// A global variable, which a namespace may hold: "?var@abc@@3HA".
+		if len(scope) > 1 {
+			d.Namespace = name.outermost()[:len(scope)-1]
+		}
 		return p.dataSymbol(d)
 	case kind == '4' && name.local:
 		return p.localData(name)
 	}
 	return nil, errMsvc
+}
+
+// codeView ports MDObjectCodeView: "?@" before a symbol, which Ghidra's Full
+// writes with a "CV: " prefix. The name is the symbol's own, and a code view
+// cannot nest.
+func (p *msvcParser) codeView() (*Demangled, error) {
+	// shortcut: a bare template under a code view is named by Ghidra's own scope (the oracle's "?@?$template@H" is in "H"), so it is rejected.
+	if p.positionStartsWith("?@") || p.positionStartsWith("?$") {
+		return nil, errMsvc
+	}
+	d, err := p.symbol()
+	if err != nil {
+		return nil, err
+	}
+	if d.Full != "" {
+		d.Full = "CV: " + d.Full
+	}
+	return d, nil
 }
 
 // dataSymbol parses the type of a data symbol and its trailing 'A' or 'B'. The
@@ -289,6 +315,13 @@ func (p *msvcParser) functionResult(d *Demangled, kind byte, xtor, clr bool) (*D
 	qual := d.Name
 	if len(d.Namespace) > 0 {
 		qual = strings.Join(append(append([]string{}, d.Namespace...), d.Name), "::")
+	}
+	// shortcut: a function in an anonymous namespace keeps its name, and Full stays empty: the oracle shows its spelling only for CLR names; upgrade with a non-CLR oracle name.
+	if strings.Contains(qual, "_anon_") {
+		if clr {
+			return nil, errMsvc
+		}
+		return d, nil
 	}
 	if clr {
 		// Ghidra names a CLR function by its whole signature, with spaces as
