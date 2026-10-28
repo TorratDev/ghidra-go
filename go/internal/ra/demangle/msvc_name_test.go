@@ -24,17 +24,44 @@ func TestMsvcAnonymousNamespaces(t *testing.T) {
 	}
 }
 
-// A backreference to an anonymous fragment prints the raw fragment, while the
-// qualifier that introduces it prints "_anon_". Java's results for both names.
-func TestMsvcAnonymousBackref(t *testing.T) {
+// Every component spelled "A0x<hex>" prints as "_anon_<8 hex>", including a
+// backreference to it. These are Ghidra 12.1.4's outputs, from its
+// MicrosoftDemangler probe.
+func TestMsvcAnonymousComponents(t *testing.T) {
 	for _, c := range []struct{ mangled, leaf, ns string }{
-		{"?g@?A0x12@1@QAEXXZ", "g", "A0x12::_anon_00000012"},
-		{"?x@?A0x12@1@3HA", "x", "A0x12::_anon_00000012"},
+		// Ghidra: name=x | ns=_anon_00000012
+		{"?x@A0x12@@3HA", "x", "_anon_00000012"},
+		// Ghidra: name=_anon_00000012 | ns=<none>
+		{"?A0x12@@3HA", "_anon_00000012", ""},
+		// Ghidra: name=_anon_00000012 | ns=ns
+		{"?A0x12@ns@@3HA", "_anon_00000012", "ns"},
+		// Ghidra: name=g | ns=_anon_00000012::_anon_00000012
+		{"?g@?A0x12@1@QAEXXZ", "g", "_anon_00000012::_anon_00000012"},
+		// Ghidra: name=x | ns=_anon_00000012::_anon_00000012
+		{"?x@?A0x12@1@3HA", "x", "_anon_00000012::_anon_00000012"},
 	} {
 		d := DemangleMsvc(c.mangled)
 		if d == nil || d.Name != c.leaf || ns(d) != c.ns {
 			t.Errorf("%s: got %+v, want %q in %q", c.mangled, d, c.leaf, c.ns)
 		}
+	}
+}
+
+// A vftable in an anonymous namespace: Ghidra's signature is
+// "const _anon_00000012::`vftable'".
+func TestMsvcAnonymousVtableFull(t *testing.T) {
+	d := DemangleMsvc("??_7A0x12@@6B@")
+	if d == nil || ns(d) != "_anon_00000012" || d.Name != "`vftable'" || d.Full != "const _anon_00000012::`vftable'" {
+		t.Errorf("got %+v, want `vftable' in _anon_00000012 with Full const _anon_00000012::`vftable'", d)
+	}
+}
+
+// A class argument of a template whose first component is "?A" makes Ghidra
+// throw, so it gives no result. The argument is "?$AAA@V?A0x12@@@@" in
+// Ghidra's probe.
+func TestMsvcAnonymousTemplateArgReject(t *testing.T) {
+	if d := DemangleMsvc("?x@?$AAA@V?A0x12@@@@3HA"); d != nil {
+		t.Errorf("got %q, want no result", d.Name)
 	}
 }
 

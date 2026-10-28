@@ -101,14 +101,14 @@ func (p *msvcParser) component() (string, error) {
 		if idx >= len(p.names) {
 			return "", errMsvc
 		}
-		return p.names[idx], nil
+		return anonDisplay(p.names[idx])
 	}
 	name, err := p.identifier()
 	if err != nil {
 		return "", err
 	}
 	p.addName(name)
-	return name, nil
+	return anonDisplay(name)
 }
 
 // identifier reads a plain identifier at the position.
@@ -133,26 +133,25 @@ func (p *msvcParser) anonymous() (string, error) {
 	if err != nil || !p.take('@') {
 		return "", errMsvc
 	}
-	// A backreference to the fragment prints it raw, so the table keeps the raw text.
+	// The table keeps the raw fragment; every use of it prints through anonDisplay.
 	p.addName(raw)
-	if strings.HasPrefix(raw, "A0x") && anonDisplay(raw) == raw {
-		return "", errMsvc // the hex number is not valid
-	}
-	return anonDisplay(raw), nil
+	return anonDisplay(raw)
 }
 
-// anonDisplay is the qualifier text of an anonymous fragment: "A0x<hex>" becomes
-// "_anon_" and the number as 8 uppercase hex digits. Other names are unchanged.
-func anonDisplay(s string) string {
+// anonDisplay is a name component as Ghidra prints it: "A0x<hex>" becomes
+// "_anon_" and the number as 8 uppercase hex digits, wherever it appears
+// (MDMangUtils.createStandardAnonymousNamespaceNode). Other names are unchanged.
+// A hex number that does not parse is not certain, so it is rejected.
+func anonDisplay(s string) (string, error) {
 	hex, ok := strings.CutPrefix(s, "A0x")
 	if !ok {
-		return s
+		return s, nil
 	}
 	v, err := strconv.ParseUint(hex, 16, 64)
 	if err != nil {
-		return s
+		return "", errMsvc
 	}
-	return fmt.Sprintf("_anon_%08X", v)
+	return fmt.Sprintf("_anon_%08X", v), nil
 }
 
 func isIdentStart(c byte) bool {

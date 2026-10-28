@@ -122,10 +122,6 @@ func (p *msvcParser) vtable(base string, typeCode byte) (*Demangled, error) {
 		if err != nil {
 			return nil, err
 		}
-		// A backreference to an anonymous fragment prints as its qualifier here.
-		for i := range q.parts {
-			q.parts[i] = anonDisplay(q.parts[i])
-		}
 		quals = append(quals, q.String())
 	}
 	p.i++ // the list terminator
