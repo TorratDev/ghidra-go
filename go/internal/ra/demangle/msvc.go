@@ -125,7 +125,12 @@ func (p *msvcParser) symbol() (*Demangled, error) {
 			return p.operator(xtor)
 		}
 	}
-	name, err := p.mdQualifiedName()
+	// A constructor or destructor's class is a qualification, so it may start with "?A".
+	qualify := p.mdQualifiedName
+	if xtor != 0 {
+		qualify = p.mdQualification
+	}
+	name, err := qualify()
 	if err != nil {
 		return nil, err
 	}

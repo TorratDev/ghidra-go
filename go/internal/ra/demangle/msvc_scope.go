@@ -20,12 +20,9 @@ func (p *msvcParser) localScope() ([]string, error) {
 		return nil, errMsvc
 	}
 	p.i += len("??")
-	fn, err := p.qualifiedNameFrom(msvcName{})
+	fn, err := p.mdQualifiedName()
 	if err != nil {
 		return nil, err
-	}
-	if len(fn.parts) == 0 {
-		return nil, errMsvc
 	}
 	kind := p.next()
 	if kind == '9' && p.peek() == '@' {
@@ -103,7 +100,7 @@ func (p *msvcParser) localData(name msvcName) (*Demangled, error) {
 // guard, and the number follows its '5' type code, as in "??_B?1??f@@YAXXZ@51"
 // which is "`local static guard'{2}'" in "`f'::__l2".
 func (p *msvcParser) localGuard() (*Demangled, error) {
-	name, err := p.qualifiedNameFrom(msvcName{})
+	name, err := p.mdQualification()
 	if err != nil {
 		return nil, err
 	}

@@ -32,7 +32,18 @@ func (n msvcName) String() string {
 // mdQualifiedName ports MDQualifiedName: it parses name components up to the
 // empty component that closes the list. A simple name is closed by '@'; a
 // backreference stands alone. Each new simple name joins the name table.
+// A first "?A" is rejected: Ghidra throws on it. Only a base list takes it.
 func (p *msvcParser) mdQualifiedName() (msvcName, error) {
+	if p.positionStartsWith("?A") {
+		return msvcName{}, errMsvc
+	}
+	return p.mdQualification()
+}
+
+// mdQualification ports MDQualification: the base lists of vtables, and the
+// class or scope of a special name, operator, constructor or guard. Unlike
+// MDQualifiedName, its first component may be an anonymous "?A".
+func (p *msvcParser) mdQualification() (msvcName, error) {
 	n, err := p.qualifiedNameFrom(msvcName{})
 	if err != nil {
 		return msvcName{}, err

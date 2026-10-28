@@ -40,7 +40,11 @@ func (p *msvcParser) templateBody(bare bool) (text string, empty bool, err error
 	if strings.HasSuffix(args, ">") {
 		args += " " // "A<B<int> >"
 	}
-	return name + "<" + args + ">", false, nil
+	base, err := anonDisplay(name)
+	if err != nil {
+		return "", false, err
+	}
+	return base + "<" + args + ">", false, nil
 }
 
 // templateArgs ports MDTemplateArgumentsList. Arguments are basic types, class,
@@ -187,10 +191,6 @@ func (p *msvcParser) templateArgs(bare bool) (string, error) {
 			return "", errMsvc
 		case c == 'V' || c == 'U' || c == 'T':
 			p.i++
-			// shortcut: a class argument whose first component is "?A" makes Ghidra throw, so it is rejected; upgrade if Ghidra's rule is ported.
-			if p.positionStartsWith("?A") {
-				return "", errMsvc
-			}
 			n, err := p.mdQualifiedName()
 			if err != nil {
 				return "", err
