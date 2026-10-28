@@ -36,6 +36,10 @@ build freestanding-x86_64-pe-clang-O2.exe clang --target=x86_64-pc-windows-msvc 
     -nostdlib -fuse-ld=lld -Wl,/entry:_start -Wl,/subsystem:console -Wl,/Brepro $SRC/freestanding.c
 build freestanding-i386-pe-clang-O2.exe clang --target=i686-pc-windows-msvc -O2 -ffreestanding -fno-builtin \
     -nostdlib -fuse-ld=lld -Wl,/entry:_start -Wl,/subsystem:console -Wl,/Brepro $SRC/freestanding.c
+# Mach-O (not in the corpus until #38). Its reference build used clang 14 and
+# lld 14 in the debian:bookworm-slim container, not the host toolchain.
+build freestanding-x86_64-macho-clang-O2 clang --target=x86_64-apple-darwin -O2 -ffreestanding -fno-builtin \
+    -nostdlib -fuse-ld=lld -Wl,-e,__start $SRC/freestanding.c
 
 # Rust (no_std, no libc). rustc defaults to v0 mangling; legacy mangling is
 # behind -Z, enabled on stable via RUSTC_BOOTSTRAP for this corpus build only.

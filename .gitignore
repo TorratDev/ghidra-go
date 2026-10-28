@@ -7,6 +7,9 @@
 *.dll
 *.so
 *.dylib
+# The PE corpus binaries are committed for `ra regress`.
+!rust-analysis/compare/corpus/binaries/*.exe
+!rust-analysis/compare/corpus/binaries/*.dll
 
 # Test binary, built with `go test -c`
 *.test

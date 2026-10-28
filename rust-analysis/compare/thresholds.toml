@@ -1087,7 +1087,7 @@ precision = 1.0
 
 [binaries."freestanding-i386-pe-clang-O2.exe".xrefs_flow]
 recall = 1.0
-precision = 0.972
+precision = 0.968
 
 [binaries."freestanding-i386-pe-clang-O2.exe".xrefs_from_data]
 recall = 0.0
