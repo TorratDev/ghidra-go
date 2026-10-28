@@ -1,7 +1,7 @@
 // Package loader is the Go port of the ELF, PE and raw-image parts of
 // rust-analysis/crates/ra-loader (Ghidra ElfLoader, PeLoader, BinaryLoader and
-// the .eh_frame function seeding of GccExceptionAnalyzer). Mach-O is not
-// ported (follow-up #38).
+// the .eh_frame function seeding of GccExceptionAnalyzer). Mach-O has only its
+// memory layout ported, from Ghidra's MachoProgramBuilder (#38).
 package loader
 
 import (
@@ -123,8 +123,12 @@ func LoadBytes(data []byte, path, languageOverride string) (*Program, error) {
 		if p, err = loadPE(pf, data, path); err != nil {
 			return nil, err
 		}
+	} else if mf, err := macho.NewFile(bytes.NewReader(data)); err == nil {
+		if p, err = loadMachO(mf, data, path); err != nil {
+			return nil, err
+		}
 	} else if isMachO(data) {
-		return nil, fmt.Errorf("%s: Mach-O is not supported yet (#38)", path)
+		return nil, fmt.Errorf("%s: fat Mach-O is not supported yet (#38)", path)
 	} else {
 		if languageOverride == "" {
 			return nil, fmt.Errorf("%s: unrecognized format; pass --language to load as raw binary", path)

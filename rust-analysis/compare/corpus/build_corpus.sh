@@ -36,9 +36,10 @@ build freestanding-x86_64-pe-clang-O2.exe clang --target=x86_64-pc-windows-msvc 
     -nostdlib -fuse-ld=lld -Wl,/entry:_start -Wl,/subsystem:console -Wl,/Brepro $SRC/freestanding.c
 build freestanding-i386-pe-clang-O2.exe clang --target=i686-pc-windows-msvc -O2 -ffreestanding -fno-builtin \
     -nostdlib -fuse-ld=lld -Wl,/entry:_start -Wl,/subsystem:console -Wl,/Brepro $SRC/freestanding.c
-# Mach-O (not in the corpus until #38). Its reference build used clang 14 and
-# lld 14 in the debian:bookworm-slim container, not the host toolchain.
-build freestanding-x86_64-macho-clang-O2 clang --target=x86_64-apple-darwin -O2 -ffreestanding -fno-builtin \
+# Mach-O. The macOS 11 target adds LC_BUILD_VERSION and __DATA_CONST; the
+# default darwin triple does not, and lld's output is deterministic, so no UUID
+# pinning. Reproduced with clang 14 and lld 14 in debian:bookworm-slim.
+build freestanding-x86_64-macho-clang-O2 clang --target=x86_64-apple-macos11 -O2 -ffreestanding -fno-builtin \
     -nostdlib -fuse-ld=lld -Wl,-e,__start $SRC/freestanding.c
 
 # Rust (no_std, no libc). rustc defaults to v0 mangling; legacy mangling is

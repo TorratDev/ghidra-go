@@ -1165,6 +1165,78 @@ precision = 1.0
 recall = 0.0
 precision = 1.0
 
+[binaries.freestanding-x86_64-macho-clang-O2.blocks]
+recall = 0.0
+precision = 0.975
+
+[binaries.freestanding-x86_64-macho-clang-O2.demangled_names]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-macho-clang-O2.edges]
+recall = 0.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-macho-clang-O2.exports]
+recall = 0.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-macho-clang-O2.function_bodies]
+recall = 0.888
+precision = 0.888
+
+[binaries.freestanding-x86_64-macho-clang-O2.function_names]
+recall = 0.0
+precision = 0.8
+
+[binaries.freestanding-x86_64-macho-clang-O2.functions]
+recall = 0.0
+precision = 0.9
+
+[binaries.freestanding-x86_64-macho-clang-O2.imports]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-macho-clang-O2.instruction_details]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-macho-clang-O2.instructions]
+recall = 0.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-macho-clang-O2.memory_blocks]
+recall = 0.3
+precision = 0.5
+
+[binaries.freestanding-x86_64-macho-clang-O2.no_return]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-macho-clang-O2.symbols]
+recall = 0.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-macho-clang-O2.thunks]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-macho-clang-O2.xrefs_data]
+recall = 0.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-macho-clang-O2.xrefs_data_kinds]
+recall = 1.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-macho-clang-O2.xrefs_flow]
+recall = 0.0
+precision = 1.0
+
+[binaries.freestanding-x86_64-macho-clang-O2.xrefs_from_data]
+recall = 0.0
+precision = 1.0
+
 [binaries."freestanding-x86_64-pe-clang-O2.exe".blocks]
 recall = 1.0
 precision = 1.0
