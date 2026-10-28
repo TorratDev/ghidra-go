@@ -6,6 +6,8 @@ import "strings"
 // as they are parsed.
 type msvcName struct {
 	parts []string
+	// local is set when a local scope ("?<n>??f") is one of the components.
+	local bool
 }
 
 // outermost returns the components outermost first, the order a namespace
@@ -41,6 +43,15 @@ func (p *msvcParser) mdQualifiedName() (msvcName, error) {
 // the '@' that closes the list.
 func (p *msvcParser) qualifiedNameFrom(n msvcName) (msvcName, error) {
 	for !p.take('@') {
+		if p.peek() == '?' && isDigit(p.peek1()) {
+			scope, err := p.localScope()
+			if err != nil {
+				return msvcName{}, err
+			}
+			n.parts = append(n.parts, scope...)
+			n.local = true
+			continue
+		}
 		if p.positionStartsWith("?$") {
 			// The template's arguments end with their own '@'; the loop's '@' closes the list.
 			t, _, err := p.templateName(false)

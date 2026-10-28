@@ -97,6 +97,9 @@ func (p *msvcParser) symbol() (*Demangled, error) {
 		return nil, errMsvc
 	}
 	if p.peek() == '$' {
+		if leaf, ok := p.staticLocalLeaf(); ok {
+			return p.staticLocalSymbol(leaf)
+		}
 		// A bare template type, "?$Name@args", names the template instance.
 		p.i--
 		t, _, err := p.templateName(true)
@@ -143,6 +146,10 @@ func (p *msvcParser) symbol() (*Demangled, error) {
 	if ext && kind != 'Y' {
 		return nil, errMsvc
 	}
+	// A local scope is only ported for a static local's data.
+	if name.local && kind != '4' {
+		return nil, errMsvc
+	}
 	switch {
 	case xtor != 0 && (hasThis(kind) || kind == 'S'):
 		// A constructor or destructor is named after its class, and the
@@ -162,24 +169,36 @@ func (p *msvcParser) symbol() (*Demangled, error) {
 			res.Full = `extern "C" ` + res.Full
 		}
 		return res, err
-	case (hasThis(kind) || kind == 'S') && len(scope) > 1:
+	case (hasThis(kind) || kind == 'S' || kind == 'K' || kind == 'C') && len(scope) > 1:
 		d.Namespace = name.outermost()[:len(scope)-1]
 		d.IsFunction = true
 		return p.functionResult(d, kind, false, clr)
 	case kind == '3' && len(scope) == 1:
-		t, err := p.mdDataTypeParser()
-		if err != nil {
-			return nil, err
-		}
-		if t == "std::nullptr_t" {
-			return nil, errMsvc // Ghidra names such data by its type, not the symbol
-		}
-		if !p.take('A') && !p.take('B') {
-			return nil, errMsvc
-		}
-		return d, nil
+		return p.dataSymbol(d)
+	case kind == '4' && name.local:
+		return p.localData(name)
 	}
 	return nil, errMsvc
+}
+
+// dataSymbol parses the type of a data symbol and its trailing 'A' or 'B'. The
+// caller has set the name and namespace on d.
+func (p *msvcParser) dataSymbol(d *Demangled) (*Demangled, error) {
+	t, err := p.mdDataTypeParser()
+	if err != nil {
+		return nil, err
+	}
+	if t == "std::nullptr_t" {
+		return nil, errMsvc // Ghidra names such data by its type, not the symbol
+	}
+	// A function pointer's 64-bit marker comes after its type, as in "P6AHXZEA".
+	if strings.Contains(t, "(") && p.peek() == 'E' && (p.peek1() == 'A' || p.peek1() == 'B') {
+		p.i++
+	}
+	if !p.take('A') && !p.take('B') {
+		return nil, errMsvc
+	}
+	return d, nil
 }
 
 // hasThis reports whether a function kind is a non-static member, which takes
@@ -238,11 +257,13 @@ func (p *msvcParser) function(kind byte) (fnSig, error) {
 // access keyword.
 var fnAccessColon = map[byte]string{
 	'Y': "", 'Q': "public: ", 'A': "private: ", 'S': "public: static ", 'U': "public: virtual ",
+	'C': "private: static ", 'K': "protected: static ",
 }
 
 // fnAccess is the MDMang prefix for each function kind.
 var fnAccess = map[byte]string{
 	'Y': "", 'Q': "public ", 'A': "private ", 'S': "public static ", 'U': "public virtual ",
+	'C': "private static ", 'K': "protected static ",
 }
 
 // functionResult parses the function encoding and sets Full from the
@@ -259,11 +280,7 @@ func (p *msvcParser) functionResult(d *Demangled, kind byte, xtor, clr bool) (*D
 		}
 		return d, nil
 	}
-	// shortcut: a function-pointer return type, a doubled const on a pointee, and
-	// a 64-bit pointer inside a function-pointer argument are not spelled as
-	// Ghidra does (it writes the return type inside-out and drops the outer
-	// __ptr64 there), so Full stays empty for them; upgrade when the pointer rules are ported.
-	if !sig.exact || strings.Contains(sig.ret, "(") || strings.Contains(strings.Join(sig.args, ","), "const const") || argPtr64InFnPtr(sig.args) {
+	if unrenderable(sig) {
 		if clr {
 			return nil, errMsvc // a name Ghidra gives from its signature is not guessed
 		}
@@ -292,6 +309,15 @@ func (p *msvcParser) functionResult(d *Demangled, kind byte, xtor, clr bool) (*D
 	}
 	d.Full = full + sig.cc + " " + qual + "(" + argsText(sig.args) + ")" + ptr64Suffix(sig) + " "
 	return d, nil
+}
+
+// unrenderable reports a signature whose Full text is not spelled as Ghidra
+// spells it. shortcut: a function-pointer return type, a doubled const on a
+// pointee, a member with calling convention 'A', and a 64-bit pointer inside a
+// function-pointer argument stay unrendered (Ghidra writes the return type
+// inside-out and drops the outer __ptr64 there); upgrade when the pointer rules are ported.
+func unrenderable(sig fnSig) bool {
+	return !sig.exact || strings.Contains(sig.ret, "(") || strings.Contains(strings.Join(sig.args, ","), "const const") || argPtr64InFnPtr(sig.args)
 }
 
 // ptr64Suffix is the " __ptr64" that ends a signature with a 64-bit this pointer.
