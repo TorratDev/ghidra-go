@@ -40,7 +40,8 @@ func (p *msvcParser) mdQualifiedName() (msvcName, error) {
 	return p.mdQualification()
 }
 
-// mdQualification ports MDQualification, the base lists of vtables. Unlike
+// mdQualification ports MDQualification: the base lists of vtables, and the
+// class or scope of a special name, operator, constructor or guard. Unlike
 // MDQualifiedName, its first component may be an anonymous "?A".
 func (p *msvcParser) mdQualification() (msvcName, error) {
 	n, err := p.qualifiedNameFrom(msvcName{})

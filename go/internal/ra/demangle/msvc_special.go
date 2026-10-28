@@ -38,7 +38,7 @@ func (p *msvcParser) special() (*Demangled, error) {
 // the one-letter tail is ported; the thunk 'A' (near this, call and vfptr)
 // adds the "{index,{flat}}" modifier, other thunks give the bare name.
 func (p *msvcParser) vcall(leaf string) (*Demangled, error) {
-	cls, err := p.mdQualifiedName()
+	cls, err := p.mdQualification()
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (p *msvcParser) doubleUnderscore() (*Demangled, error) {
 // MDVxTable parses, the cv letter, and the base qualifiers in "{for `a'}".
 // Ghidra writes the name with spaces as '_' (the oracle's leaf names do).
 func (p *msvcParser) vtable(base string, typeCode byte) (*Demangled, error) {
-	cls, err := p.mdQualifiedName()
+	cls, err := p.mdQualification()
 	if err != nil {
 		return nil, err
 	}
@@ -225,10 +225,11 @@ func (p *msvcParser) signedText() (string, error) {
 	return strconv.Itoa(v), nil
 }
 
-// optionalQualifiedName is a qualified name that may be empty: a lone '@'.
+// optionalQualifiedName is a qualification that may be empty: a lone '@'. It
+// is the outer scope of an operator or RTTI name, so a first "?A" is allowed.
 func (p *msvcParser) optionalQualifiedName() (msvcName, error) {
 	if p.take('@') {
 		return msvcName{}, nil
 	}
-	return p.mdQualifiedName()
+	return p.mdQualification()
 }

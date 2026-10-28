@@ -91,6 +91,28 @@ func TestMsvcFirstPositionAnon(t *testing.T) {
 	}
 }
 
+// A special name, operator or constructor takes a qualification, which may
+// start with "?A" (MDQualification), so these name their anonymous class. These
+// are Ghidra 12.1.4's results from the same probe; Full is empty where Ghidra's
+// signature is not ported.
+func TestMsvcSpecialNamesAnonClass(t *testing.T) {
+	for _, c := range []struct{ mangled, leaf, ns, full string }{
+		// Ghidra: name=`vftable' | ns=_anon_00000012 | sig=const _anon_00000012::`vftable'
+		{"??_7?A0x12@@6B@", "`vftable'", "_anon_00000012", "const _anon_00000012::`vftable'"},
+		// Ghidra: name=`RTTI_Base_Class_Array' | ns=_anon_00000012
+		{"??_R2?A0x12@@8", "`RTTI_Base_Class_Array'", "_anon_00000012", "_anon_00000012::`RTTI_Base_Class_Array'"},
+		// Ghidra: name=operator= | ns=_anon_00000012 | sig=public void __thiscall _anon_00000012::operator=(void)
+		{"??4?A0x12@@QAEXXZ", "operator=", "_anon_00000012", ""},
+		// Ghidra: name=_anon_00000012 | ns=_anon_00000012 | sig=public __thiscall _anon_00000012::_anon_00000012(void)
+		{"??0?A0x12@@QAE@XZ", "_anon_00000012", "_anon_00000012", ""},
+	} {
+		d := DemangleMsvc(c.mangled)
+		if d == nil || d.Name != c.leaf || ns(d) != c.ns || d.Full != c.full {
+			t.Errorf("%s: got %+v, want %q in %q with Full %q", c.mangled, d, c.leaf, c.ns, c.full)
+		}
+	}
+}
+
 // A function in an anonymous namespace keeps its name and namespace, with Full
 // empty: the oracle spells that Full only for CLR names.
 func TestMsvcAnonymousFunctionFull(t *testing.T) {
