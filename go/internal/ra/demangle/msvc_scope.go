@@ -20,12 +20,9 @@ func (p *msvcParser) localScope() ([]string, error) {
 		return nil, errMsvc
 	}
 	p.i += len("??")
-	fn, err := p.qualifiedNameFrom(msvcName{})
+	fn, err := p.mdQualifiedName()
 	if err != nil {
 		return nil, err
-	}
-	if len(fn.parts) == 0 {
-		return nil, errMsvc
 	}
 	kind := p.next()
 	if kind == '9' && p.peek() == '@' {

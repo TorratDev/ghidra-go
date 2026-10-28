@@ -65,6 +65,32 @@ func TestMsvcAnonymousTemplateArgReject(t *testing.T) {
 	}
 }
 
+// A "?A" first component makes Ghidra throw in a qualified name, so these give
+// no result. The template base name "A0x<hex>" prints as "_anon_<8 hex>". These
+// are Ghidra 12.1.4's results from a direct MicrosoftDemangler probe.
+func TestMsvcFirstPositionAnon(t *testing.T) {
+	for _, m := range []string{
+		"?f@@YAXPAV?A0x12@@@Z",
+		"?x@@3V?A0x12@@A",
+		"??_R0?AV?A0x12@@@8",
+		"?f@@YAXW4?A0x12@@@Z",
+		"?$AAA@PAV?A0x12@@",
+		"?x@?1???A0x12@@YAXXZ@4HA",
+	} {
+		if d := DemangleMsvc(m); d != nil {
+			t.Errorf("%s: got %q, want no result", m, d.Name)
+		}
+	}
+	// Ghidra: name=_anon_00000012<int> | ns=<none>
+	if d := DemangleMsvc("?$A0x12@H"); d == nil || d.Name != "_anon_00000012<int>" || ns(d) != "" || d.Full != "_anon_00000012<int>" {
+		t.Errorf("?$A0x12@H: got %+v, want _anon_00000012<int>", d)
+	}
+	// A vtable's base list keeps a first "?A" (MDQualification). Ghidra: name=`vftable'{for_`_anon_00000012'} | ns=name0
+	if d := DemangleMsvc("??_7name0@@6B?A0x12@@@"); d == nil || d.Name != "`vftable'{for_`_anon_00000012'}" || ns(d) != "name0" || d.Full != "const name0::`vftable'{for_`_anon_00000012'}" {
+		t.Errorf("base list: got %+v", d)
+	}
+}
+
 // A function in an anonymous namespace keeps its name and namespace, with Full
 // empty: the oracle spells that Full only for CLR names.
 func TestMsvcAnonymousFunctionFull(t *testing.T) {

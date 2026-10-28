@@ -118,7 +118,7 @@ func (p *msvcParser) vtable(base string, typeCode byte) (*Demangled, error) {
 	}
 	var quals []string
 	for p.peek() != '@' {
-		q, err := p.mdQualifiedName()
+		q, err := p.mdQualification()
 		if err != nil {
 			return nil, err
 		}
