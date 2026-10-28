@@ -11,6 +11,7 @@ func TestMsvcAnonymousNamespaces(t *testing.T) {
 		// "?Aname" keeps its 'A' as the name of the namespace.
 		{"?var@abc@?Axyz@1@3HA", "abc::Axyz::abc", "var", ""},
 		{"?var@abc@?Axyz@2@3HA", "Axyz::Axyz::abc", "var", ""},
+		{"??_7a@?A0xfedcba98@b@@6B012@01@@", "b::_anon_FEDCBA98::a", "`vftable'{for_`b::_anon_FEDCBA98::a's_`_anon_FEDCBA98::a'}", "const b::_anon_FEDCBA98::a::`vftable'{for_`b::_anon_FEDCBA98::a's_`_anon_FEDCBA98::a'}"},
 		{"??_7name0@?Aname1@@6Bname2@1@@", "Aname1::name0", "`vftable'{for_`Aname1::name2'}", "const Aname1::name0::`vftable'{for_`Aname1::name2'}"},
 	} {
 		d := DemangleMsvc(c.mangled)
@@ -19,6 +20,20 @@ func TestMsvcAnonymousNamespaces(t *testing.T) {
 		}
 		if d.Name != c.leaf || ns(d) != c.ns || d.Full != c.full {
 			t.Errorf("%s: got %q in %q with Full %q, want %q in %q with Full %q", c.mangled, d.Name, ns(d), d.Full, c.leaf, c.ns, c.full)
+		}
+	}
+}
+
+// A backreference to an anonymous fragment prints the raw fragment, while the
+// qualifier that introduces it prints "_anon_". Java's results for both names.
+func TestMsvcAnonymousBackref(t *testing.T) {
+	for _, c := range []struct{ mangled, leaf, ns string }{
+		{"?g@?A0x12@1@QAEXXZ", "g", "A0x12::_anon_00000012"},
+		{"?x@?A0x12@1@3HA", "x", "A0x12::_anon_00000012"},
+	} {
+		d := DemangleMsvc(c.mangled)
+		if d == nil || d.Name != c.leaf || ns(d) != c.ns {
+			t.Errorf("%s: got %+v, want %q in %q", c.mangled, d, c.leaf, c.ns)
 		}
 	}
 }

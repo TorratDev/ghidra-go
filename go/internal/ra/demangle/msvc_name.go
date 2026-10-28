@@ -133,16 +133,26 @@ func (p *msvcParser) anonymous() (string, error) {
 	if err != nil || !p.take('@') {
 		return "", errMsvc
 	}
-	name := raw
-	if hex, ok := strings.CutPrefix(raw, "A0x"); ok {
-		v, err := strconv.ParseUint(hex, 16, 64)
-		if err != nil {
-			return "", errMsvc
-		}
-		name = fmt.Sprintf("_anon_%08X", v)
+	// A backreference to the fragment prints it raw, so the table keeps the raw text.
+	p.addName(raw)
+	if strings.HasPrefix(raw, "A0x") && anonDisplay(raw) == raw {
+		return "", errMsvc // the hex number is not valid
 	}
-	p.addName(name)
-	return name, nil
+	return anonDisplay(raw), nil
+}
+
+// anonDisplay is the qualifier text of an anonymous fragment: "A0x<hex>" becomes
+// "_anon_" and the number as 8 uppercase hex digits. Other names are unchanged.
+func anonDisplay(s string) string {
+	hex, ok := strings.CutPrefix(s, "A0x")
+	if !ok {
+		return s
+	}
+	v, err := strconv.ParseUint(hex, 16, 64)
+	if err != nil {
+		return s
+	}
+	return fmt.Sprintf("_anon_%08X", v)
 }
 
 func isIdentStart(c byte) bool {
